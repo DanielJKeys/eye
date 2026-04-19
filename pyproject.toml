@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "aces-platform"
+version = "1.0.0"
+description = "ACE Simulation Environment Platform — Military Logistics RL Simulator"
+requires-python = ">=3.10"
+dependencies = [
+    "gymnasium>=0.26.3",
+    "stable-baselines3>=2.3.0",
+    "sb3-contrib>=2.3.0",
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
+    "plotly>=5.18.0",
+    "folium>=0.15.0",
+    "streamlit>=1.31.0",
+    "streamlit-folium>=0.18.0",
+    "sqlalchemy>=2.0.0",
+    "pydantic>=2.0.0",
+    "torch>=2.0.0",
+]
+
+[project.scripts]
+aces-ui = "aces.ui.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["aces*"]

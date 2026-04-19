@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3)",
+      "Bash(pip install *)",
+      "Bash(python -m pip install sqlalchemy gymnasium stable-baselines3 sb3-contrib)"
+    ]
+  }
+}

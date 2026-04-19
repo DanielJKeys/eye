@@ -1,0 +1,2564 @@
+====================================================================================================
+JUPYTER NOTEBOOK STRUCTURE AND CONTENTS
+====================================================================================================
+
+
+####################################################################################################
+CELL 0: MARKDOWN
+####################################################################################################
+
+# ACES Simulator
+
+####################################################################################################
+CELL 1: MARKDOWN
+####################################################################################################
+
+## User Parameters
+
+####################################################################################################
+CELL 2: CODE
+####################################################################################################
+
+# Step to Hour describes the relationship from step to how many hours have transpired in the game
+# Examples: .5 = 30mins, 1 = 60mins, 2 = 120mins
+step_to_hour = 0.5 # @param {type:"slider", min:0, max:1, step:0.1}
+
+#Mision Level Paramters
+#How many decimal places is the threat %.  10 = 1 decimal place
+percentage_decimal = 10    # @param {type:"slider", min:10, max:100, step:10}
+#How long is the mission that is expected to be run
+mission_length = 120      # @param {type:"slider", min:0, max:240, step:24}
+#How long before missile strike should base be notified.  Number is in HOURS
+alert_window = 1          # @param {type:"slider", min:0, max:4, step:0.5}
+stop_events = ["missile", "destroyed"] #Events that trigger a stop of the running cycle before the stop time
+
+#Supply & Asset Paramters
+#How many hours to load/unload resources onto assets
+load_time = 1              # @param {type:"slider", min:0, max:10, step:1}
+#Runway Material to Feet Repaired
+material_to_ft = 8000      # @param {type:"slider", min:0, max:15000, step:1000}
+#Min lbs of Personnel to Repair Runway
+min_personnel_repair = 0   # @param {type:"slider", min:0, max:15000, step:1000}
+#Size of small craters in ft
+small_crater_size = 10     # @param {type:"slider", min:1, max:30, step:5}
+#lbs of Food per lbs of personnel
+food_per_lb_personnel = .01         # @param {type:"slider", min:0, max:1, step:0.01}
+#lbs of Food per lbs of personnel
+water_per_lb_personnel = .01        # @param {type:"slider", min:0, max:1, step:0.01}
+
+# AI Tuning Parameters
+AI_Training = True  # @param {type:"boolean"}
+#How much reward is recieved for every lb delivered to target
+target_reward_multiplier = 5000     # @param {type:"slider", min:0, max:50000, step:1000}
+#How much penalty is recieved for bad behavior
+bad_behavior_reward = 1000000       # @param {type:"slider", min:0, max:1000000, step:10000}
+#How much reward is recieved for having assets take off
+takeoff_rewards = 1000              # @param {type:"slider", min:0, max:9000, step:100}
+#Size of the smallest unit of supplies that can be added to an asset
+supply_fractionalizer = 1000           # @param {type:"slider", min:0, max:9000, step:100}
+
+#Saving Parameters
+#Is this script being run Locally?
+Local_Run = False                   # @param {type:"boolean"}
+#Save name of the output sheet when saved.  Note: Saves to MYDRIVE if cloud run.
+ACE_Save_Name = "ACE Output"
+folder_path = "/content/drive/Shareddrives/Automates (IL4)/Models/ACE Model/4.0/Reports/"
+#What is the current time from loading
+mission_time = 0                    # @param {type:"slider", min:0, max:200, step:0.5}
+
+#Assets jitter around location by (value / 100) in lat-lon
+graph_jitter = 3                   # @param {type:"slider", min:0, max:25, step:1}
+
+#Base Status Coloring
+base_status_yellow_threshold = 75 # @param {type:"slider", min:0, max:100, step:5}
+base_status_orange_threshold = 50 # @param {type:"slider", min:0, max:100, step:5}
+base_status_red_threshold = 25    # @param {type:"slider", min:0, max:100, step:5}
+
+#"console" = Text, "graph" = Graphical, "map" = Map
+render_mode = []
+
+####################################################################################################
+CELL 3: CODE
+####################################################################################################
+
+if not Local_Run:
+  #Sheet where assets are stored
+  data_sheet = "ACE Environment"          # @param {type:"string"}
+  #Sheet where mission plans are stored.
+  mission_sheet = "ACE Environment"       # @param {type:"string"}
+
+####################################################################################################
+CELL 4: CODE
+####################################################################################################
+
+if Local_Run:
+  #Sheet where assets are stored.  File path if local
+  data_sheet = "ACE Environment.xlsx"     # @param {type:"string"}
+  #Sheet where mission plans are stored.  File path if local
+  mission_sheet = "ACE Environment.xlsx"  # @param {type:"string"}
+
+####################################################################################################
+CELL 5: MARKDOWN
+####################################################################################################
+
+## Imports
+
+####################################################################################################
+CELL 6: CODE
+####################################################################################################
+
+!pip install python-docx
+
+[OUTPUT]
+Collecting python-docx
+  Downloading python_docx-1.1.1-py3-none-any.whl (242 kB)
+[2K     [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m242.8/242.8 kB[0m [31m4.4 MB/s[0m eta [36m0:00:00[0m
+[?25hCollecting lxml<=4.9.2,>=3.1.0 (from python-docx)
+  Downloading lxml-4.9.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_24_x86_64.whl (7.1 MB)
+[2K     [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m7.1/7.1 MB[0m [31m20.5 MB/s[0m eta [36m0:00:00[0m
+[?25hR
+####################################################################################################
+CELL 7: CODE
+####################################################################################################
+
+!pip install -U kaleido
+
+[OUTPUT]
+Collecting kaleido
+  Downloading kaleido-0.2.1-py2.py3-none-manylinux1_x86_64.whl (79.9 MB)
+[2K     [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m79.9/79.9 MB[0m [31m9.8 MB/s[0m eta [36m0:00:00[0m
+[?25hInstalling collected packages: kaleido
+Successfully installed kaleido-0.2.1
+
+####################################################################################################
+CELL 8: CODE
+####################################################################################################
+
+!pip install gymnasium
+
+[OUTPUT]
+Collecting gymnasium
+  Downloading gymnasium-0.29.1-py3-none-any.whl (953 kB)
+[2K     [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m953.9/953.9 kB[0m [31m7.2 MB/s[0m eta [36m0:00:00[0m
+[?25hRequirement already satisfied: numpy>=1.21.0 in /usr/local/lib/python3.10/dist-packages (from gymnasium) (1.25.2)
+Requirement already satisfied: cloudpickle>=1.2.0 in /usr/local/lib/python3.10/dist-packages (from gymnasium) (2.2.1)
+Requirement already satisfied: typing-extensions>=4.3.0 in /us
+####################################################################################################
+CELL 9: CODE
+####################################################################################################
+
+import gymnasium as gym
+import pandas as pd
+import math
+import random
+import numpy as np
+from tabulate import tabulate
+import plotly.colors as px_colors
+import plotly.express as px
+from plotly.subplots import make_subplots
+from plotly.offline import plot
+import plotly.graph_objects as go
+
+####################################################################################################
+CELL 10: CODE
+####################################################################################################
+
+if Local_Run == False:
+  import folium
+  import gspread
+  from google.auth import default
+  from google.colab import auth
+  from google.colab import drive
+
+####################################################################################################
+CELL 11: MARKDOWN
+####################################################################################################
+
+## Functions
+
+####################################################################################################
+CELL 12: MARKDOWN
+####################################################################################################
+
+####read_sheet
+
+####################################################################################################
+CELL 13: CODE
+####################################################################################################
+
+def read_sheet(filename=data_sheet, sheet_name="Sheet1"):
+  if Local_Run:
+    return pd.read_excel(filename, sheet_name=sheet_name, index_col=0)
+
+  # Authenticate Google Sheets API
+  auth.authenticate_user()
+  creds, _ = default()
+  gc = gspread.authorize(creds)
+
+  # Access the specified worksheet in the Google Sheets document
+  worksheet = gc.open(filename).worksheet(sheet_name)
+
+  # Get all values from the worksheet
+  rows = worksheet.get_all_values()
+
+  # Create a DataFrame from the retrieved data
+  return pd.DataFrame(rows[1:], columns=rows[0]).set_index(rows[0][0])
+
+####################################################################################################
+CELL 14: MARKDOWN
+####################################################################################################
+
+####write_sheet
+
+####################################################################################################
+CELL 15: CODE
+####################################################################################################
+
+def write_sheet(data, filename="ACE Output", sheet_name="Sheet1", workbook=None):
+  # Check if it's a local run, and write to Excel file if true
+  if Local_Run:
+    if workbook is None:
+      workbook = pd.ExcelWriter(filename)
+    data.to_excel(workbook, sheet_name=sheet_name, index=False)
+    return workbook
+
+  # If running on Google Colab, create or use an existing Google Sheets workbook
+  if workbook is None:
+    creds, _ = default()
+    gc = gspread.authorize(creds)
+    workbook = gc.create(filename)
+
+  # Add a worksheet to the workbook with specified name
+  worksheet = workbook.add_worksheet(title=sheet_name)
+
+  # Write column names to the first row of the worksheet
+  worksheet.append_row(data.columns.tolist())
+
+  # Write data values to the worksheet
+  for row in data.itertuples(index=False):
+    worksheet.append_row(list(row))
+
+  return workbook
+
+####################################################################################################
+CELL 16: MARKDOWN
+####################################################################################################
+
+####assets_init
+
+####################################################################################################
+CELL 17: CODE
+####################################################################################################
+
+def assets_init():
+  # Initialize an empty list to store asset objects
+  assets = []
+
+  # Loop through the mission assets DataFrame
+  for mission_asset_index in range(len(df_mission_assets)):
+    # Get the latitude and longitude values, handling the case where they are zero
+    temp_lat = df_mission_assets.iloc[mission_asset_index][latitude_col]
+    if temp_lat == 0:
+      temp_lat = df_locations.loc[df_mission_assets.iloc[mission_asset_index][mission_asset_destination_col], latitude_col]
+
+    temp_lon = df_mission_assets.iloc[mission_asset_index][longitude_col]
+    if temp_lon == 0:
+      temp_lon = df_locations.loc[df_mission_assets.iloc[mission_asset_index][mission_asset_destination_col], longitude_col]
+
+    # Create an asset object and append it to the assets list
+    assets.append(Asset(
+        asset_type=df_mission_assets.iloc[mission_asset_index][mission_asset_type_col],
+        name=df_mission_assets.index[mission_asset_index],
+        destination=df_locations.loc[df_mission_assets.iloc[mission_asset_index][mission_asset_destination_col], location_row_number_col],
+        in_transit=df_mission_assets.iloc[mission_asset_index][mission_asset_in_transit_col].lower() == "true",
+        is_destroyed=df_mission_assets.iloc[mission_asset_index][mission_asset_destroyed_col].lower() == "true",
+        supplies={key: int(df_mission_assets.iloc[mission_asset_index][key] / supply_fractionalizer) for key in df_supply_types.index},
+        fuel={AvGas_Resource_Name: int(df_mission_assets.iloc[mission_asset_index][mission_asset_fuel_col] / supply_fractionalizer)},
+        broken_parts={Parts_Resource_Name: df_mission_assets.iloc[mission_asset_index][mission_asset_broken_parts_col]},
+        current_latitude=temp_lat,
+        current_longitude=temp_lon
+    ))
+
+  # Return the list of initialized assets
+  return assets
+
+####################################################################################################
+CELL 18: MARKDOWN
+####################################################################################################
+
+####bases_init
+
+####################################################################################################
+CELL 19: CODE
+####################################################################################################
+
+def bases_init():
+  # Initialize an empty list to store base objects
+  bases = []
+
+  # Loop through the locations DataFrame
+  for base_index in range(len(df_locations)):
+    # Create a base object and append it to the bases list
+    bases.append(Base(
+        runway_length=int(df_locations.iloc[base_index][base_runway_col]),
+        runway_length_max=int(df_locations.iloc[base_index][base_runway_max_col]),
+        latitude=df_locations.iloc[base_index][latitude_col],
+        longitude=df_locations.iloc[base_index][longitude_col],
+        name=df_locations.index[base_index],
+        is_target=df_locations.iloc[base_index][location_target_col].lower() == "true",
+        supplies={resource: int(df_locations.iloc[base_index][resource] / supply_fractionalizer) for resource in df_supply_types.index}
+    ))
+
+  # Return the list of initialized bases
+  return bases
+
+####################################################################################################
+CELL 20: MARKDOWN
+####################################################################################################
+
+####in_circle
+
+####################################################################################################
+CELL 21: CODE
+####################################################################################################
+
+def in_circle(lat, lon, lat_sense, lon_sense, radius):
+    # Calculate the Euclidean distance between the given point and the center
+    distance = math.sqrt((lat - lat_sense)**2 + (lon - lon_sense)**2)
+
+    # Check if the distance is within the specified radius
+    return distance <= radius
+
+####################################################################################################
+CELL 22: MARKDOWN
+####################################################################################################
+
+####distance_calc
+
+####################################################################################################
+CELL 23: CODE
+####################################################################################################
+
+def distance_calc(a, b):
+  # Calculate the Euclidean distance using the Pythagorean theorem
+  distance = math.sqrt(a**2 + b**2)
+
+  # Return the calculated distance
+  return distance
+
+####################################################################################################
+CELL 24: MARKDOWN
+####################################################################################################
+
+####move
+
+####################################################################################################
+CELL 25: CODE
+####################################################################################################
+
+def move(lat1, lon1, lat2, lon2, move_dist):
+  """
+  Calculate the new location after moving from the initial location to the destination.
+
+  Parameters:
+  - lat1 (float): Initial latitude.
+  - lon1 (float): Initial longitude.
+  - lat2 (float): Destination latitude.
+  - lon2 (float): Destination longitude.
+  - move_dist (float): Distance to move (in nautical miles).
+
+  Returns:
+  - list: New location [latitude, longitude].
+  """
+  # Convert coordinates to numpy arrays for vector operations
+  asset_initial_location = np.array([lat1, lon1])
+  destination_location = np.array([lat2, lon2])
+
+  # Calculate the vector pointing from the initial location to the destination
+  direction_vector = destination_location - asset_initial_location
+
+  # Calculate the distance between the initial and destination locations
+  distance = np.linalg.norm(direction_vector)
+
+  # Calculate the unit vector in the direction of movement
+  direction_unit_vector = direction_vector / distance
+
+  # Calculate the final location after moving by the specified distance
+  asset_final_location = asset_initial_location + (move_dist / 60) * direction_unit_vector
+
+  # Adjust longitude if it crosses the antimeridian
+  asset_final_location[1] = (asset_final_location[1] + 180) % 360 - 180
+
+  # Return the new location as a list [latitude, longitude]
+  return asset_final_location.tolist()
+
+####################################################################################################
+CELL 26: MARKDOWN
+####################################################################################################
+
+####lat_lon_distance_calc
+
+####################################################################################################
+CELL 27: CODE
+####################################################################################################
+
+def lat_lon_distance_calc(lat1, lng1, lat2, lng2):
+  """
+  Calculate the great-circle distance between two points on the Earth's surface.
+
+  Parameters:
+  - lat1 (float): Latitude of the first point.
+  - lng1 (float): Longitude of the first point.
+  - lat2 (float): Latitude of the second point.
+  - lng2 (float): Longitude of the second point.
+
+  Returns:
+  - float: Great-circle distance between the two points in nautical miles.
+  """
+  # Radius of the Earth in meters
+  R = 6371e3
+
+  # Convert latitudes and longitudes from degrees to radians
+  phi1 = lat1 * math.pi / 180
+  phi2 = lat2 * math.pi / 180
+  del_phi = (lat2 - lat1) * math.pi / 180  # azimuth difference in radians
+  del_lambda = (lng2 - lng1) * math.pi / 180  # elevation difference in radians
+
+  # Haversine formula to calculate the great-circle distance
+  a = (math.sin(del_phi / 2))**2 + math.cos(phi1) * math.cos(phi2) * (math.sin(del_lambda / 2))**2
+  c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+  d = R * c / 1852  # distance in nautical miles
+
+  return d
+
+####################################################################################################
+CELL 28: MARKDOWN
+####################################################################################################
+
+####update_mission_flightplan
+
+####################################################################################################
+CELL 29: CODE
+####################################################################################################
+
+def update_mission_flightplan(asset_order_increment=0):
+  """
+  Update the mission flight plan by decrementing mission order for a specific asset.
+
+  Parameters:
+  - asset_order_increment (int): The value to identify the asset for which to decrement the mission order.
+                                  Defaults to 0.
+
+  Returns:
+  - None
+  """
+  # Decrement the mission order for rows where mission_asset_col matches asset_order_increment
+  df_mission.loc[df_mission[mission_asset_col] == asset_order_increment, mission_order_col] -= 1
+
+####################################################################################################
+CELL 30: MARKDOWN
+####################################################################################################
+
+####estimate_graph
+
+####################################################################################################
+CELL 31: CODE
+####################################################################################################
+
+def estimate_graph(base="all"):
+  """
+  Estimate resource usage over time for a mission.
+
+  Parameters:
+  - base (str or int): Base location or "all" for all bases. Defaults to "all".
+
+  Returns:
+  - pd.DataFrame: DataFrame containing resource usage over time.
+  """
+  # Initialize a list to track resource usage for each hour in the mission
+  usage = [{key: 0 for key in df_supply_types.index} for _ in range(mission_length)]
+
+  # Set up indexed DataFrames for locations and mission assets
+  df_locations_reindex = df_locations.set_index(location_row_number_col)
+  df_mission_assets_reindex = df_mission_assets.set_index(asset_row_number_col)
+
+  # Convert "all" to -1 for later comparison
+  if base == "all":
+    base = -1
+  else:
+    base = df_locations.loc[base, location_row_number_col]
+
+  # Iterate through mission assets
+  for index_asset in df_mission_assets.index:
+    hour = 0
+    previous_fuel = df_mission_assets.loc[index_asset, mission_asset_fuel_col]
+    cur_base = df_locations.loc[df_mission_assets.loc[index_asset, mission_asset_destination_col], location_row_number_col]
+    cur_lat = df_locations_reindex.loc[cur_base, latitude_col]
+    cur_lon = df_locations_reindex.loc[cur_base, longitude_col]
+
+    # Get mission schedule for the current asset
+    df = df_mission[df_mission[mission_asset_col] == df_mission_assets.loc[index_asset, asset_row_number_col]]
+    df.set_index(mission_order_col, inplace=True)
+
+    # Iterate through each mission order
+    for index_order in df.index:
+      if df.loc[index_order, mission_schedule_col] != -1:
+        hour = df.loc[index_order, mission_schedule_col]
+
+      # Update fuel and supply usage if applicable
+      if df.loc[index_order, mission_asset_fuel_col] != -1 and (cur_base == base or base == -1):
+        usage[hour][AvGas_Resource_Name] += df.loc[index_order, mission_asset_fuel_col] - previous_fuel
+
+      if cur_base == base or base == -1:
+        for supply in df_supply_types.index:
+          usage[hour][supply] += df.loc[index_order, supply]
+
+      # Calculate fuel usage for travel to the destination
+      dest_lat = df_locations_reindex.loc[df.loc[index_order, mission_destination_col], latitude_col]
+      dest_lon = df_locations_reindex.loc[df.loc[index_order, mission_destination_col], longitude_col]
+
+      hours_travel = math.ceil(lat_lon_distance_calc(cur_lat, cur_lon, dest_lat, dest_lon) / df_asset_types.loc[df_mission_assets_reindex.loc[df.loc[index_order, mission_asset_col], mission_asset_type_col], fuel_burn_col])
+
+      # Update previous fuel value for the next iteration
+      if df.loc[index_order, mission_asset_fuel_col] != -1:
+        previous_fuel = df.loc[index_order, mission_asset_fuel_col] - df_asset_types.loc[df_mission_assets_reindex.loc[df.loc[index_order, mission_asset_col], mission_asset_type_col], fuel_burn_col] * hours_travel
+      else:
+        previous_fuel += df.loc[index_order, mission_asset_fuel_col] - df_asset_types.loc[df_mission_assets_reindex.loc[df.loc[index_order, mission_asset_col], mission_asset_type_col], fuel_burn_col] * hours_travel + 1
+
+      hour += hours_travel + load_time * 2
+
+      # Update current location of the asset
+      cur_lat = dest_lat
+      cur_lon = dest_lon
+      cur_base = df.loc[index_order, mission_destination_col]
+
+      if hour >= mission_length:
+        break
+
+  # Create a DataFrame from the usage list
+  df_usage = pd.DataFrame(usage)
+  df_usage["Hour"] = range(len(df_usage))
+
+  # Set the "Hour" column as the index and return the DataFrame
+  return df_usage.set_index("Hour")
+
+####################################################################################################
+CELL 32: MARKDOWN
+####################################################################################################
+
+## Read Data
+
+####################################################################################################
+CELL 33: CODE
+####################################################################################################
+
+AvGas_Resource_Name = "AvGas (lbs)"
+Munitions_Resource_Name = "Munitions (lbs)"
+Food_Resource_Name = "Food (lbs)"
+Water_Resource_Name = "Water (lbs)"
+Parts_Resource_Name = "Parts (lbs)"
+MoGas_Resource_Name = "MoGas (lbs)"
+Personnel_Resource_Name = "Personnel (lbs)"
+Electricity_Resource_Name = "Electricity (kwh)"
+Runway_Resource_Name = "Runway Material (lbs)"
+asset_cost_col = "Cost"
+asset_max_fuel_avgas_col = "Fuel Capacity AvGas (lbs)"
+fuel_burn_col = "Fuel Burn (lbs/hr)"
+speed_col = "Speed (kts)"
+signature_col = "Signature (%)"
+asset_type_missile_signature_col = "On Base Signature (%)"
+asset_max_cargo_volume_col = "Max Cargo Volume (ft3)"
+asset_max_cargo_weight_col = "Max Cargo Weight (lbs)"
+asset_cargo_types_col = "Cargo Types"
+asset_part_break_chance_col = "Part Break Chance (%)"
+asset_part_min_col = "Min Break (lbs)"
+asset_part_max_col = "Max Break (lbs)"
+asset_part_threshold_col = "Break Threshold (lbs)"
+asset_runway_required_col = "Runway Required (ft)"
+asset_personnel_required_col = "Personnel (lbs) Required"
+asset_type_col = "Type"
+asset_row_number_col = "Row Number"
+supply_weight_col = "Unit Weight"
+supply_volume_col = "Unit Volume"
+supply_unit_col = "Unit Cost"
+latitude_col = "Latitude"
+location_name_col = "Base Name"
+location_access_col = "Access Type"
+location_target_col = "Target"
+longitude_col = "Longitude"
+base_runway_col = "Runway Length (ft)"
+base_runway_max_col = "Runway Length Max (ft)"
+base_runway_repair_col = "Runway Repair (ft/hr)"
+location_row_number_col = "Row Number"
+radius_col = "Radius (lat)"
+threat_ground_threat_col = "Ground Threat (%)"
+threat_sea_threat_col = "Sea Threat (%)"
+threat_air_threat_col = "Air Threat (%)"
+missiles_time_col = "Time"
+missiles_target_col = "Target"
+missiles_number_col = "# Missiles"
+missiles_impact_col = "Missile Impact Chance (%)"
+missiles_chance_supplies_col = "Supplies Hit Chance (%)"
+missiles_chance_runway_col = "Runway Hit Chance (%)"
+missiles_chance_asset_col = "Asset Hit Chance (%)"
+missiles_type_col = "Missile Type"
+missiles_destroy_asset_col = "Assets Destroyed"
+missiles_destroy_runway_col = "Runway Destroyed"
+missiles_destroy_supplies_col = "Supplies Destroyed"
+mission_asset_type_col = "Asset Type"
+mission_asset_name_col = "Asset Name"
+mission_asset_broken_parts_col = "Broken Parts (lbs)"
+mission_asset_in_transit_col = "In Transit"
+mission_asset_destroyed_col = "Is Destroyed"
+mission_asset_destination_col = "Destination"
+mission_order_col = "Order"
+mission_asset_col = "Asset"
+mission_destination_col = "Destination"
+mission_schedule_col = "Schedule"
+mission_asset_fuel_col = "Fuel"
+mission_asset_previous_fuel_col = "Previous Fuel"
+asset_row_number_col = "Row Number"
+
+####################################################################################################
+CELL 34: CODE
+####################################################################################################
+
+def read_asset_types():
+  """
+  Read asset types from the specified sheet and return a DataFrame.
+
+  Returns:
+  - pd.DataFrame: DataFrame containing asset types.
+  """
+  # Read the asset types from the specified sheet and fill NaN values with 0
+  df_ = read_sheet(sheet_name="Asset Types").fillna(0)
+
+  # Convert numeric columns (excluding specified columns) to numeric type
+  for col in df_.columns:
+    if col != asset_cargo_types_col and col != asset_type_col:
+      df_[col] = pd.to_numeric(df_[col], errors='coerce')  # Added 'errors' parameter
+
+  # Add a column for asset row numbers
+  df_[asset_row_number_col] = range(len(df_))
+
+  # Return the DataFrame containing asset types
+  return df_
+
+####################################################################################################
+CELL 35: CODE
+####################################################################################################
+
+def read_supply_types():
+  """
+  Read supply types from the specified sheet and return a DataFrame.
+
+  Returns:
+  - pd.DataFrame: DataFrame containing supply types.
+  """
+  # Read the supply types from the specified sheet and fill NaN values with 0
+  df_ = read_sheet(sheet_name="Supply Types").fillna(0)
+
+  # Convert all columns to numeric type
+  return df_.apply(pd.to_numeric, errors='coerce')  # Apply to all columns at once
+
+####################################################################################################
+CELL 36: CODE
+####################################################################################################
+
+def read_locations():
+  """
+  Read locations from the specified sheet and return a DataFrame.
+
+  Returns:
+  - pd.DataFrame: DataFrame containing locations.
+  """
+  # Read locations from the specified sheet and fill NaN values with 0
+  df_ = read_sheet(filename=mission_sheet, sheet_name="Mission Locations").fillna(0)
+
+  # Convert specific columns to numeric type
+  df_[base_runway_col] = pd.to_numeric(df_[base_runway_col], errors='coerce')
+  df_[latitude_col] = pd.to_numeric(df_[latitude_col], errors='coerce')
+  df_[longitude_col] = pd.to_numeric(df_[longitude_col], errors='coerce')
+
+  # Convert supply columns to numeric type
+  for supply in read_sheet(sheet_name="Supply Types").index:
+    df_[supply] = pd.to_numeric(df_[supply], errors='coerce')
+
+  # Fill remaining NaN values with 0
+  df_.fillna(0, inplace=True)
+
+  # Add a column for location row numbers
+  df_[location_row_number_col] = range(len(df_))
+
+  # Return the DataFrame containing locations
+  return df_
+
+####################################################################################################
+CELL 37: CODE
+####################################################################################################
+
+def read_threat_areas():
+  """
+  Read threat areas from the specified sheet and return a DataFrame.
+
+  Returns:
+  - pd.DataFrame: DataFrame containing threat areas.
+  """
+  # Read threat areas from the specified sheet and fill NaN values with 0
+  df_ = read_sheet(sheet_name="Threat Areas").fillna(0)
+
+  # Convert all columns to numeric type
+  return df_.apply(pd.to_numeric, errors='coerce').fillna(0)
+
+####################################################################################################
+CELL 38: CODE
+####################################################################################################
+
+def read_attacks(locations):
+  """
+  Read attacks from the specified sheet and return a DataFrame.
+
+  Parameters:
+  - locations (pd.DataFrame): DataFrame containing locations.
+
+  Returns:
+  - pd.DataFrame: DataFrame containing attacks.
+  """
+  # Read attacks from the specified sheet and fill NaN values with 0
+  df_ = read_sheet(sheet_name="Attacks").fillna(0)
+
+  # Convert non-target columns to numeric type
+  for col in df_.columns:
+    if col != missiles_target_col and col != missiles_type_col:
+      df_[col] = pd.to_numeric(df_[col], errors='coerce').fillna(0)
+
+  # Convert missile target locations to row numbers based on the provided locations DataFrame
+  base_row_numbers = [locations.loc[base_i, location_row_number_col] for base_i in df_[missiles_target_col]]
+  df_[missiles_target_col] = base_row_numbers
+
+  # Return the DataFrame containing attacks
+  return df_
+
+####################################################################################################
+CELL 39: CODE
+####################################################################################################
+
+def read_missile_types():
+  """
+  Read missile types from the specified sheet and return a DataFrame.
+
+  Returns:
+  - pd.DataFrame: DataFrame containing missile types.
+  """
+  # Read missile types from the specified sheet and fill NaN values with 0
+  df_ = read_sheet(sheet_name="Missile Types").fillna(0)
+
+  # Convert non-type columns to numeric type
+  for col in df_.columns:
+    if col != missiles_type_col:
+      df_[col] = pd.to_numeric(df_[col], errors='coerce').fillna(0)
+
+  # Return the DataFrame containing missile types
+  return df_
+
+####################################################################################################
+CELL 40: CODE
+####################################################################################################
+
+def read_mission_data():
+  """
+  Read mission data from the specified sheets and return DataFrames.
+
+  Returns:
+  - pd.DataFrame, pd.DataFrame: DataFrames containing mission and mission assets data.
+  """
+  # Read mission data from the specified sheet
+  df_mission = read_sheet(filename=mission_sheet, sheet_name="Mission")
+
+  # Read mission assets data from the specified sheet
+  df_mission_assets = read_sheet(filename=mission_sheet, sheet_name="Mission Assets")
+
+  # Add a column for asset row numbers
+  df_mission_assets[asset_row_number_col] = range(len(df_mission_assets))
+
+  # Convert specific columns in mission assets to numeric type
+  for col in df_mission_assets.columns:
+    if col != mission_asset_name_col and col != mission_asset_destination_col and col != mission_asset_in_transit_col and col != mission_asset_destroyed_col and col != mission_asset_type_col:
+      df_mission_assets[col] = pd.to_numeric(df_mission_assets[col], errors='coerce').fillna(0)
+
+  # Convert destination in mission to row numbers based on the locations DataFrame
+  base_row_numbers = [df_locations.loc[base_i, location_row_number_col] for base_i in df_mission[mission_destination_col]]
+  df_mission[mission_destination_col] = base_row_numbers
+
+  # Convert asset on mission to row numbers based on the mission assets DataFrame
+  asset_row_numbers = [df_mission_assets.loc[asset_on_mission, asset_row_number_col] for asset_on_mission in df_mission[mission_asset_col]]
+  df_mission[mission_asset_col] = asset_row_numbers
+
+  # Reset the index of df_mission
+  df_mission.reset_index(inplace=True)
+
+  # Update 'max' values in mission_asset_fuel_col with corresponding values from df_asset_types
+  for index_of_max in df_mission.loc[df_mission[mission_asset_fuel_col] == "max"].index:
+    df_mission.loc[index_of_max, mission_asset_fuel_col] = df_asset_types.loc[df_mission_assets.iloc[df_mission.loc[index_of_max, mission_asset_col]][mission_asset_type_col], asset_max_fuel_avgas_col]
+
+  # Replace 'current' values in mission_asset_fuel_col with -1
+  df_mission.loc[df_mission[mission_asset_fuel_col] == "current", mission_asset_fuel_col] = -1
+
+  # Convert specific columns in df_mission to numeric type
+  for col in df_mission.columns:
+    if col != mission_asset_col and col != mission_destination_col:
+      df_mission[col] = pd.to_numeric(df_mission[col], errors='coerce').fillna(0)
+
+  # Return DataFrames containing mission and mission assets data
+  return df_mission, df_mission_assets
+
+####################################################################################################
+CELL 41: CODE
+####################################################################################################
+
+# Read data from various sheets
+df_asset_types = read_asset_types()
+df_supply_types = read_supply_types()
+df_locations = read_locations()
+df_threat_areas = read_threat_areas()
+df_missile_types = read_missile_types()
+
+# Read attacks data using df_locations
+df_attacks = read_attacks(df_locations)
+
+####################################################################################################
+CELL 42: MARKDOWN
+####################################################################################################
+
+## Classes
+
+####################################################################################################
+CELL 43: MARKDOWN
+####################################################################################################
+
+### Logistics Environment
+
+####################################################################################################
+CELL 44: CODE
+####################################################################################################
+
+class LogisticsEnv(gym.Env):
+  def __init__(self, render_mode, time):
+    self.bases = bases_init()
+    self.assets = assets_init()
+    self.observation_space = []
+    self.actions_space = []
+    self.scenario_assets_status = []
+    self.scenario_bases_status = []
+    self.scenario_destruction_status = []
+
+    self.initial_time = time
+    self.time = time
+    self.done = True
+
+    self.info = []
+    self.output_capture = ""
+    self.render_mode = render_mode
+
+    if mission_asset_previous_fuel_col in df_mission_assets.columns:
+      self.previous_fuel = [{AvGas_Resource_Name: x} for x in list(df_mission_assets.loc[:,mission_asset_previous_fuel_col])]
+    else:
+      self.previous_fuel = [{AvGas_Resource_Name: 0} for x in range(len(df_mission_assets))]
+
+    #For each asset, action space is destination, supply levels, fuel level
+    action_space_initial = []
+    if AI_Training:
+      for i in range(len(df_mission_assets)):
+          amount_carry_supplies = [
+              max(1, int((df_asset_types.loc[self.assets[i].asset_type, asset_max_cargo_weight_col] + 1) / supply_fractionalizer)) if supply in df_asset_types.loc[self.assets[i].asset_type, asset_cargo_types_col] else 1
+              for supply in df_supply_types.index
+          ]
+          action_space_initial += [
+              len(self.bases),  # Destination
+              max(1, int((df_asset_types.loc[self.assets[i].asset_type, asset_max_fuel_avgas_col] + 1) / supply_fractionalizer)),  # Fuel Loaded
+          ] + amount_carry_supplies
+
+      self.action_space = gym.spaces.MultiDiscrete(action_space_initial)
+
+    else:
+      for i in range(len(df_mission_assets)):
+        amount_carry_supplies = [int((df_asset_types.loc[self.assets[i].asset_type, asset_max_cargo_weight_col] + 1) / supply_fractionalizer) if supply in df_asset_types.loc[self.assets[i].asset_type, asset_cargo_types_col] else 1 for supply in df_supply_types.index]
+        action_space_initial.append(
+            [len(self.bases), # Destination
+            int((df_asset_types.loc[self.assets[i].asset_type, asset_max_fuel_avgas_col] + 1) / supply_fractionalizer), # Fuel Loaded
+            ] + amount_carry_supplies)
+      self.action_space = gym.spaces.MultiDiscrete(action_space_initial)
+
+    #Asset Locations
+
+    total_observation_elements = len(self.bases) * (3+len(df_supply_types.index)) + len(self.assets) * (4+len(df_supply_types.index))
+    low_observation = np.zeros(total_observation_elements)
+    high_observation = np.ones(total_observation_elements)
+
+    self.observation_space = gym.spaces.Box(low=low_observation, high=high_observation, dtype=np.float32)
+
+  def _get_observation(self):
+    """
+    Get the current observation of the environment's state.
+
+    Returns:
+    - np.ndarray: Flattened and normalized observation.
+    """
+    obs = []
+
+    # Loop through each asset and gather its observation
+    for asset in self.assets:
+        asset_obs = [
+            max(0, min(float(asset.current_latitude) / 360.0, 1)),  # Normalize latitude
+            max(0, min(float(asset.current_longitude) / 180.0, 1)),  # Normalize longitude
+            max(0, min(float(asset.fuel.get(AvGas_Resource_Name, 0)) / df_asset_types.loc[asset.asset_type, asset_max_fuel_avgas_col] if df_asset_types.loc[asset.asset_type, asset_max_fuel_avgas_col] > 0 else 0, 1)),  # Normalize fuel
+            min(1, max(0, float(df_asset_types.loc[asset.asset_type, asset_row_number_col]) / len(df_asset_types))),  # Normalize asset type
+        ]
+        # Append normalized supply levels for each supply type
+        for supply in df_supply_types.index:
+            asset_obs.append(min(1, max(0, float(asset.supplies.get(supply, 0)) / df_asset_types.loc[asset.asset_type, asset_max_cargo_weight_col] if df_asset_types.loc[asset.asset_type, asset_max_cargo_weight_col] > 0 else 0)))
+        obs += asset_obs
+
+
+    # Loop through each base and gather its observation
+    for i, base in enumerate(self.bases):
+        bases_obs = [
+            max(0, min(float(base.latitude) / 360.0, 1)),  # Normalize latitude
+            max(0, min(float(base.longitude) / 180.0, 1)),  # Normalize longitude
+            max(0, min(float(i) / len(df_locations), 1)),  # Normalize base designator and number
+        ]
+        # Append normalized supply levels for each supply type
+        for supply in base.supplies.values():
+            bases_obs.append(max(0, min(float(supply) / (9999999 / supply_fractionalizer), 1)))
+        obs += bases_obs
+
+    return np.array(obs, dtype=np.float32)
+
+  def _get_action_space(self):
+    """
+    Get the action space of the environment.
+
+    Returns:
+    - gym.spaces: The action space.
+    """
+    return self.action_space
+
+  def _get_info(self):
+      """
+      Get extra information about what happened during the step (notifications).
+
+      Returns:
+      - list: List containing additional information about the step.
+      """
+      return self.info
+
+  def reset(self, seed=0):
+      """
+      Reset the environment to its initial state and get the initial observation.
+
+      Args:
+      - seed (int): Seed for reproducibility (optional).
+
+      Returns:
+      - tuple: Tuple containing the initial observation and additional information.
+      """
+      # Reinitialize bases and assets
+      self.bases = bases_init()
+      self.assets = assets_init()
+
+      # Reset time and mark the environment as not done
+      self.time = self.initial_time
+      self.done = False
+
+      # Return the initial observation and additional information
+      return self._get_observation(), self._get_info()
+
+  def step(self, action_perform):
+    """
+    Take an action in the environment and output results.
+
+    Args:
+    - action_perform: The action to be performed in the environment.
+
+    Returns:
+    - tuple: Tuple containing the new observation, rewards, done flag, info, and time.
+    """
+    # Check if the episode is already completed
+    assert not self.done, "Cannot step in a completed episode, please reset environment"
+
+    # Check if the provided action is valid
+    #assert self.action_space.contains(action_perform), f"Invalid action: {[i for i in action_perform]}, not in action space"
+
+    # Clear previous info for the current step
+    self.info = []
+
+    # Store the previous fuel levels for assets
+    self.previous_fuel = [asset.fuel for asset in self.assets]
+
+    # Initialize rewards
+    rewards = 0
+
+    # Perform the Action of the Step
+    rewards += self.action(action_perform)
+
+    # Move the assets toward the destination
+    rewards += self.move()
+
+    # Receive supplies from the assets
+    rewards += self.receive()
+
+    # Consume the supplies at the bases
+    rewards += self.consume()
+
+    # Attack the bases & assets
+    rewards += self.attacked()
+
+    # Repair the runway
+    rewards += self.repair()
+
+    # Check if the episode is done
+    self.done = self.time >= mission_length
+
+    # Render the current output if rendering is enabled
+    if self.render_mode is not None:
+        self.render()
+
+    # Increment Time
+    self.time += round(1 * step_to_hour, 2)
+
+    bases_status = [b.save() for b in env.bases]
+    self.scenario_bases_status.append(bases_status)
+
+    assets_status = [a.save() for a in env.assets]
+    self.scenario_assets_status.append(assets_status)
+
+    # Return the new observation, rewards, done flag, info, and time
+    return self._get_observation(), rewards, self.done, False, {'time': self.time}
+
+  def consume(self):
+      """
+      Consume supplies at bases.
+
+      Returns:
+      - float: Total reward earned from base supply consumption.
+      """
+      reward = 0
+      self.info.append("BASES CONSUMING")
+
+      # Iterate over each base and accumulate rewards from supply consumption
+      for base in self.bases:
+          reward += sum(base.consume().values())
+
+      return reward
+
+  def repair(self):
+    """
+    Initiate repairs at each base.
+
+    Returns:
+    - float: Total reward earned from base repairs.
+    """
+    reward = 0
+    self.info.append("BASES REPAIRING")
+
+    # Iterate over each base, accumulate rewards from repairs, and collect repair information
+    for base in self.bases:
+      temp_reward, temp_info = base.repair()
+      reward += temp_reward
+      self.info += temp_info
+
+    return reward
+
+  def attacked(self):
+    """
+    Simulate attacks on bases and assets.
+
+    Returns:
+    - float: Total reward earned or lost during attacks.
+    """
+    rewards = 0
+    self.info.append("BASES GETTING ATTACKED")
+    for attack in df_attacks.index:
+      if df_attacks.loc[attack, missiles_time_col] == self.time:
+        self.info.append(f"{df_attacks.loc[attack, missiles_number_col]} Missiles Striking {self.bases[df_attacks.loc[attack, missiles_target_col]].name}")
+        rewards += self.handle_missile_strike(attack)
+
+      elif self.time <= df_attacks.loc[attack, missiles_time_col] < self.time + alert_window:
+        self.info.append(f"{df_attacks.loc[attack, missiles_number_col]} Missiles Incoming at Time: {df_attacks.loc[attack, missiles_time_col]}")
+
+    rewards += sum(asset.check_threat() for asset in self.assets if not asset.is_destroyed)
+    return rewards
+
+  def handle_missile_strike(self, attack):
+      """
+      Handle the effects of a missile strike.
+
+      Args:
+      - attack (int): Index of the attack in the attacks dataframe.
+
+      Returns:
+      - float: Reward earned or lost during the missile strike.
+      """
+      rewards = 0
+      base_target = self.bases[df_attacks.loc[attack, missiles_target_col]]
+      num_missiles = df_attacks.loc[attack, missiles_number_col]
+
+      for _ in range(num_missiles):
+          targets = [target for target, col in [("assets", missiles_chance_asset_col), ("runway", missiles_chance_runway_col), ("supplies", missiles_chance_supplies_col)] if df_attacks.loc[attack, col] > 0]
+          c = random.choice(targets)
+
+          if c == "supplies":
+              rewards += self.destroy_supplies(base_target, df_attacks.loc[attack, missiles_chance_supplies_col], df_missile_types.loc[df_attacks.loc[attack, missiles_type_col], missiles_destroy_supplies_col])
+          elif c == "assets":
+              rewards += self.destroy_assets(df_attacks.loc[attack, missiles_target_col], df_attacks.loc[attack, missiles_chance_asset_col], df_missile_types.loc[df_attacks.loc[attack, missiles_type_col], missiles_destroy_asset_col])
+          elif c == "runway":
+              rewards += self.damage_runway(df_attacks.loc[attack, missiles_target_col], df_attacks.loc[attack, missiles_chance_runway_col], df_missile_types.loc[df_attacks.loc[attack, missiles_type_col], missiles_destroy_runway_col])
+
+      return rewards
+
+  def destroy_supplies(self, base_target, chance, payload_destroy):
+    """
+    Destroy supplies at the target base based on the chance and payload.
+
+    Args:
+    - base_target (Base): Target base object.
+    - chance (float): Chance of destroying supplies.
+    - payload_destroy (int): Maximum supplies to destroy.
+
+    Returns:
+    - float: Reward earned or lost during the supply destruction.
+    """
+    reward = 0
+
+    # Randomly pick a supply type
+    supply_to_destroy = random.choice(list(df_supply_types.index))
+
+    if random.randint(0, 100 * percentage_decimal) < chance * percentage_decimal:
+        payload_destroy = min(payload_destroy, base_target.supplies.get(supply_to_destroy, 0))
+
+        # Update scenario destruction status
+        self.scenario_destruction_status.append({"Base": base_target.name, supply_to_destroy: payload_destroy, "Time": self.time})
+
+        # Update information
+        self.info.append(f"Missile destroyed {payload_destroy} lbs of {supply_to_destroy}")
+
+        # Update reward and base supplies
+        reward -= base_target.supplies.get(supply_to_destroy, 0)
+        base_target.supplies[supply_to_destroy] -= payload_destroy
+
+    return reward
+
+  def destroy_assets(self, target_base, chance, destroy_count):
+    """
+    Destroy assets at the target base based on the chance and count.
+
+    Args:
+    - target_base (int): Target base index.
+    - chance (float): Chance of destroying assets.
+    - destroy_count (int): Number of assets to destroy.
+
+    Returns:
+    - float: Reward earned or lost during the asset destruction.
+    """
+    reward = 0
+    if random.randint(0, 100 * percentage_decimal) < chance * percentage_decimal:
+      assets_at_base = [asset for asset in self.assets if asset.destination == target_base and not asset.in_transit and not asset.is_destroyed]
+      for _ in range(destroy_count):
+        if assets_at_base:
+          asset_destroy = random.choice(assets_at_base)
+          if random.randint(0, 100 * percentage_decimal)/percentage_decimal < df_asset_types.loc[df_mission_assets.loc[asset_destroy.name, mission_asset_type_col], asset_type_missile_signature_col] * percentage_decimal:
+            asset_destroy.is_destroyed = True
+            self.scenario_destruction_status.append({"Base": self.bases[target_base].name, "Asset": asset_destroy.name, "Time":self.time})
+            self.info.append(f"{asset_destroy.name} was Destroyed by Missile")
+            reward -= df_asset_types.loc[df_mission_assets.loc[asset_destroy.name, mission_asset_type_col], asset_cost_col]
+    return reward
+
+  def damage_runway(self, target_base, chance, runway_damage):
+    """
+    Damage the runway at the target base based on the chance and runway damage.
+
+    Args:
+    - target_base (int): Target base index.
+    - chance (float): Chance of damaging the runway.
+    - runway_damage (int): Runway damage in feet.
+
+    Returns:
+    - float: Reward earned or lost during the runway damage.
+    """
+    if random.randint(0, 100 * percentage_decimal) < chance * percentage_decimal:
+      num_craters = self.bases[target_base].runway_destroy(runway_damage)
+      self.scenario_destruction_status.append({"Base": self.bases[target_base].name, "Runway": num_craters, "Time":self.time})
+      self.info.append(
+        f"{num_craters} craters inflicted on runway from base: {self.bases[target_base].name}, current status: {self.bases[target_base].runway_length}ft")
+    return 0
+
+  def receive(self):
+    """
+    Receive supplies from assets that have reached their destination.
+
+    Returns:
+    - float: Total reward earned during the supply reception.
+    """
+    self.info.append("BASES RECEIVING SUPPLIES")
+    rewards = 0
+
+    for i, asset in enumerate(self.assets):
+      if asset.land():
+
+
+        destination_base = self.bases[asset.get_destination()]
+
+        if destination_base.is_target:
+          self.info.append(f"Asset {asset.name} has attacked {self.bases[asset.get_destination()].name}")
+          munitions = asset.attack_target()
+          rewards += munitions[Munitions_Resource_Name] * target_reward_multiplier
+          destination_base.resupply(munitions)
+        else:
+          self.info.append(f"Asset {asset.name} has landed at {self.bases[asset.get_destination()].name}")
+          update_mission_flightplan(i)
+          destination_base.resupply(asset.unload())
+    return rewards
+
+  def action(self, action):
+    rewards = 0
+    self.info.append("ASSETS PERFORMING ACTIONS")
+
+    if AI_Training:
+      temp_action = [action[i * (2 + len(df_supply_types)):(i*(2 + len(df_supply_types))) + (2 + len(df_supply_types))] for i in range(len(self.assets))]
+      action = temp_action
+
+    temp_personnel = [x.supplies.get(Personnel_Resource_Name,0) for x in self.bases]
+
+    for i in range(len(self.assets)):
+      if not self.assets[i].in_transit:
+        if not self.assets[i].is_ready():
+          self.assets[i].reduce_ready()
+          if not self.assets[i].is_ready():
+            self.info.append(f"Asset {self.assets[i].name} is loading")
+
+        if self.assets[i].is_ready() and self.assets[i].fuel.get(AvGas_Resource_Name, 0) > 0:
+          if temp_personnel[self.assets[i].destination] < df_asset_types.loc[self.assets[i].asset_type, asset_personnel_required_col]:
+            self.info.append(f"Not enough personnel to launch {self.assets[i].name} from base {self.bases[self.assets[i].destination].name}")
+          else:
+            temp_personnel[self.assets[i].destination] -= df_asset_types.loc[self.assets[i].asset_type, asset_personnel_required_col]
+            self.info.append(f"Asset {self.assets[i].name} is departing to {self.bases[action[i][0]].name}")
+            self.assets[i].in_transit = True
+            self.assets[i].destination = action[i][0]
+
+        if self.assets[i].fuel.get(AvGas_Resource_Name, 0) <= 0:
+          rewards += takeoff_rewards
+          self.info.append(f"Asset {self.assets[i].name} is loading supplies and {action[i][1]} lbs of fuel")
+          rewards_pickup, supplies_pickup = self.bases[self.assets[i].destination].pickup({AvGas_Resource_Name: action[i][1]})
+          rewards += rewards_pickup
+          self.assets[i].refuel(supplies_pickup)
+
+          weight, volume = 0, 0
+          for j, supply_type in enumerate(df_supply_types.index):
+            weight += df_supply_types.loc[supply_type, supply_weight_col] * action[i][2+j]
+            volume += df_supply_types.loc[supply_type, supply_volume_col] * action[i][2+j]
+
+            if weight > df_asset_types.loc[self.assets[i].asset_type, asset_max_cargo_weight_col]:
+              rewards -= bad_behavior_reward
+              break
+
+            if volume > df_asset_types.loc[self.assets[i].asset_type, asset_max_cargo_volume_col]:
+              rewards -= bad_behavior_reward
+              break
+
+            if supply_type in df_asset_types.loc[self.assets[i].asset_type, asset_cargo_types_col]:
+              rewards_pickup, supplies_pickup = self.bases[self.assets[i].destination].pickup({supply_type: action[i][2+j]})
+              rewards += rewards_pickup
+              self.assets[i].load(supplies_pickup)
+            elif action[i][2+j] > 0:
+              rewards -= bad_behavior_reward * action[i][2+j] > 0
+
+      if self.assets[i].in_transit:
+        self.assets[i].destination = action[i][0]
+        required_fuel = math.ceil(self.assets[i].distance_to_destination() / df_asset_types.loc[self.assets[i].asset_type, speed_col]) * df_asset_types.loc[self.assets[i].asset_type, fuel_burn_col]
+        if required_fuel > self.assets[i].fuel.get(AvGas_Resource_Name,0):
+          rewards -= required_fuel * bad_behavior_reward
+
+        runway_at_arrival = self.bases[self.assets[i].destination].runway_length + (self.bases[self.assets[i].destination].runway_repair * math.ceil(self.assets[i].distance_to_destination() / df_asset_types.loc[self.assets[i].asset_type, speed_col]))
+        if runway_at_arrival > df_asset_types.loc[self.assets[i].asset_type, asset_runway_required_col]:
+          rewards -= bad_behavior_reward
+    return rewards
+
+  def move(self):
+    """
+    Move the assets toward their current destinations.
+
+    Returns:
+    - float: Total rewards earned during the movement.
+    """
+    self.info.append("ASSETS MOVING")
+    rewards = 0
+
+    for asset in self.assets:
+      temp_rewards, did_break = asset.travel()
+      rewards += temp_rewards
+
+      if did_break:
+        self.info.append(f"Asset {asset.name} Broke Parts. Current Breakage: {asset.broken_parts.get(Parts_Resource_Name, 0)}")
+
+    return rewards
+
+  def render(self, width=800, height=800):
+    """
+    Renders the output of the step into a given format.
+
+    Args:
+    - width (int): Width of the rendering.
+    - height (int): Height of the rendering.
+
+    Returns:
+    - None
+    """
+    # Text output of the events
+    if 'console' in self.render_mode:
+        output_string = f"_____________________________STATE AT END OF TIME INTERVAL: [{self.time}, {self.time + step_to_hour}]_____________________________"
+
+        # Display bases information and events
+        output_string += "\nBASES:"
+        bases_status = [base.status_report() for base in self.bases]
+        bases_event = [(base.name, log_msg) for base in self.bases for log_msg in self.info if base.name in log_msg]
+        output_string += "\n" + tabulate(pd.DataFrame(bases_status).set_index("Name"), headers='keys', tablefmt='psql')
+
+        output_string += "\nBASES EVENTS:"
+        output_string += "\n" + tabulate(pd.DataFrame(bases_event, columns=["Base", "Events"]), headers='keys', tablefmt='psql')
+        for base in self.bases:
+          if not base.is_target:
+            output_string += f"\n{base.name} Runway:\n{base.runway_report_status()}"
+
+        # Display assets information and events
+        output_string += "\nASSETS:"
+        assets_status = [asset.status_report() for asset in self.assets]
+        assets_event = [(asset.name, log_msg) for asset in self.assets for log_msg in self.info if asset.name in log_msg]
+
+        output_string += "\n" +tabulate(pd.DataFrame(assets_status).set_index("Name"), headers='keys', tablefmt='psql')
+        output_string += "\nASSETS EVENTS:"
+        output_string += "\n" +tabulate(pd.DataFrame(assets_event, columns=["Asset", "Events"]), headers='keys', tablefmt='psql')
+        output_string += "\n\n\n"
+
+        print(output_string)
+
+        self.output_capture += output_string
+
+    # Plotly Graph
+    if 'graph' in self.render_mode:
+      base_data = [{"Name": base.name, "Latitude": base.latitude, "Longitude": base.longitude,
+          **{resource: base.supplies.get(resource, 0) for resource in base.supplies.keys()}}
+        for base in self.bases]
+
+      target_data = [{"Name": base.name, "Latitude": base.latitude, "Longitude": base.longitude,
+          **{resource: base.supplies.get(resource, 0) for resource in base.supplies.keys()}}
+        for base in self.bases if base.is_target]
+
+      asset_data = [{"Name": asset.name, "Latitude": asset.current_latitude, "Longitude": asset.current_longitude,
+        **{resource: asset.supplies.get(resource, 0) for resource in asset.supplies.keys()}}
+        for asset in self.assets]
+
+      df_base = pd.DataFrame(base_data)
+      df_target = pd.DataFrame(target_data)
+      df_asset = pd.DataFrame(asset_data)
+
+      bases_figure = px.scatter(df_base, x="Latitude", y="Longitude", width=width, height=height,
+        hover_data=df_base.columns, hover_name="Name", symbol="hexagram-dot",
+        color_discrete_sequence=["DarkSlateGrey"])
+
+      fig = bases_figure.data
+
+      if target_data:
+          targets_figure = px.scatter(df_target, x="Latitude", y="Longitude", width=width, height=height,
+            hover_data=df_target.columns, hover_name="Name", symbol="x-dot",
+            color_discrete_sequence=["Red"])
+          fig += targets_figure.data
+
+      if asset_data:
+          assets_figure = px.scatter(df_asset, x="Latitude", y="Longitude", width=width, height=height,
+            hover_data=df_asset.columns, hover_name="Name", symbol="arrow",
+            color_discrete_sequence=["Green"])
+          fig += assets_figure.data
+
+      final_fig = go.Figure(data=fig)
+
+      for area in df_threat_areas.index:
+        x0 = df_threat_areas.loc[area, latitude_col] - df_threat_areas.loc[area, radius_col]
+        x1 = df_threat_areas.loc[area, latitude_col] + df_threat_areas.loc[area, radius_col]
+        y0 = df_threat_areas.loc[area, longitude_col] - df_threat_areas.loc[area, radius_col]
+        y1 = df_threat_areas.loc[area, longitude_col] + df_threat_areas.loc[area, radius_col]
+
+        final_fig.add_shape(type="circle",
+                            x0=x0, y0=y0, x1=x1, y1=y1,
+                            line_color="Red",
+                            fillcolor="Red",
+                            opacity=df_threat_areas.loc[area, threat_air_threat_col] / 200
+                            )
+        final_fig.show()
+
+    # Folium Map
+    if 'map' in self.render_mode:
+      m = folium.Map(location=[df_locations["Latitude"].mean(), df_locations["Longitude"].mean()],
+               tiles='OpenStreetMap',  # Use 'OpenStreetMap' tiles provider
+               zoom_start=5, control_scale=True)
+
+      for location in [self.bases, self.assets, df_threat_areas.index]:
+        for item in location:
+          latitude = 0
+          longitude = 0
+          if isinstance(item, Base):
+            supplies_text = [f"<br>{supply_type}: {item.supplies.get(supply_type, 0)}" for supply_type in
+                            df_supply_types.index]
+
+            icon_color = "darkgreen"
+            percent_supply = 1
+            if item.is_target: icon_color = "red"
+            else:
+              for supply in [AvGas_Resource_Name, Personnel_Resource_Name, Munitions_Resource_Name]:
+                if percent_supply > item.supplies.get(supply, 0) / df_locations.loc[item.name,supply]:
+                  percent_supply = item.supplies.get(supply, 0) / df_locations.loc[item.name,supply]
+
+              if percent_supply > item.runway_length / item.runway_length_max:
+                percent_supply = item.runway_length / item.runway_length_max
+
+              if percent_supply < base_status_yellow_threshold / 100:
+                icon_color = "lightgreen"
+
+              if percent_supply < base_status_orange_threshold / 100:
+                icon_color = "orange"
+
+              if percent_supply < base_status_red_threshold / 100:
+                icon_color = "red"
+
+            icon_symbol = "remove-circle" if item.is_target else "flag"
+            popup_content = (f"<b>Target: {item.name}</b> <br>Munitions: {item.supplies[Munitions_Resource_Name]}"
+                            if item.is_target else
+                            f"<b>Base: {item.name}</b><br>Runway Length: {item.runway_length}" + "".join(
+                                s for s in supplies_text))
+            latitude = item.latitude
+            longitude = item.longitude
+
+          elif isinstance(item, Asset):
+            supplies_text = [f"<br>{supply_type}: {item.supplies.get(supply_type, 0)}" for supply_type in
+                            df_supply_types.index]
+            icon_color = "blue" if item.in_transit else "black"
+            icon_symbol = "plane" if not item.is_destroyed else "remove"
+            if df_asset_types.loc[item.asset_type,"Type"] == "Ground":
+              icon_symbol = "cog" if not item.is_destroyed else "remove"
+            if df_asset_types.loc[item.asset_type,"Type"] == "Sea":
+              icon_symbol = "triangle-bottom" if not item.is_destroyed else "remove"
+            popup_content = (f"<b>Asset Name: {item.name}</b>"
+                            f"<br>Destroyed? {item.is_destroyed}"
+                            f"<br>Transit? {item.in_transit}"
+                            f"<br>Fuel: {item.fuel.get(AvGas_Resource_Name, 0)}"
+                            f"<br>Destination: {self.bases[item.destination].name}" + "".join(s for s in supplies_text))
+            latitude, longitude = item.current_latitude + random.uniform(-graph_jitter, graph_jitter)/100, item.current_longitude + random.uniform(-graph_jitter, graph_jitter)/ 100
+            destination_base = self.bases[item.destination]
+
+            # Draw line from Asset to its Destination Base
+            folium.PolyLine([(latitude, longitude), (destination_base.latitude, destination_base.longitude)],
+                            color='black', weight=1.5, opacity=1).add_to(m)
+
+          elif isinstance(item, str):  # Threat area
+            popup_content = (f"<b>Threat: {item}</b>"
+                            f"<br>Air: {df_threat_areas.loc[item, threat_air_threat_col]}%"
+                            f"<br>Sea: {df_threat_areas.loc[item, threat_sea_threat_col]}%"
+                            f"<br>Ground: {df_threat_areas.loc[item, threat_ground_threat_col]}%")
+            latitude = df_threat_areas.loc[item, latitude_col]
+            longitude = df_threat_areas.loc[item, longitude_col]
+          else:
+              continue
+
+          # Create markers or circles based on the item type
+          if isinstance(item, (Base, Asset)):
+            folium.Marker([latitude,
+                          longitude],
+                          popup=folium.map.Popup(popup_content, max_width=250),
+                          icon=folium.Icon(color=icon_color, icon=icon_symbol)).add_to(m)
+          elif isinstance(item, str):  # Threat area
+            circle_color = "red"
+            if df_threat_areas.loc[item, threat_sea_threat_col] > df_threat_areas.loc[item, threat_air_threat_col] and df_threat_areas.loc[item, threat_sea_threat_col] > df_threat_areas.loc[item, threat_ground_threat_col]:
+              circle_color = "blue"
+            if df_threat_areas.loc[item, threat_ground_threat_col] > df_threat_areas.loc[item, threat_air_threat_col] and df_threat_areas.loc[item, threat_ground_threat_col] > df_threat_areas.loc[item, threat_air_threat_col]:
+              circle_color = "brown"
+            folium.Circle(location=[latitude, longitude],
+                          radius=int((df_threat_areas.loc[item, radius_col] / 0.000539957) * 60),
+                          popup=folium.map.Popup(popup_content, max_width=250),
+                          color=circle_color, fill=True, fill_color=circle_color).add_to(m)
+      drive.mount('/content/drive')
+      m.save(folder_path + f"Maps/Scenario_Map-Time_{self.time}.html")
+
+  def save(self):
+    """
+    Save the current state of the environment to an Excel file.
+
+    This function saves information about assets, bases, and the mission to an Excel file.
+    It includes additional information such as the previous fuel levels of assets.
+
+    Returns:
+    - None
+    """
+    # Save asset data
+    asset_data = [asset.save() for asset in self.assets]
+
+    # Save base data
+    base_data = [base.save() for base in self.bases]
+
+    # Create DataFrames for assets and bases
+    df_asset = pd.DataFrame(asset_data)
+    df_base = pd.DataFrame(base_data)
+
+    # Add the previous fuel information to the asset DataFrame
+    df_asset[mission_asset_previous_fuel_col] = [x.get(AvGas_Resource_Name, 0) for x in self.previous_fuel]
+
+    # Create a copy of the mission DataFrame to avoid modifying the original
+    df_mission_save = df_mission.copy()
+
+    # Map mission asset indices to row numbers in the mission DataFrame
+    for index, row in df_mission_assets.iterrows():
+      df_mission_save.loc[df_mission_save[mission_asset_col] == row[asset_row_number_col], mission_asset_col] = index
+
+    # Map location indices to row numbers in the mission DataFrame
+    for index, row in df_locations.iterrows():
+      df_mission_save.loc[df_mission_save[mission_destination_col] == row[location_row_number_col], mission_destination_col] = index
+
+    # Determine the filename based on whether it's a local run
+    filename = f"{ACE_Save_Name} Time {self.time}.xlsx" if Local_Run else f"{ACE_Save_Name} Time {self.time}"
+
+    # Write DataFrames to an Excel file using the write_sheet function
+    sheet_save = write_sheet(df_asset, filename=filename, sheet_name="Mission Assets")
+    sheet_save = write_sheet(df_mission_save, sheet_name="Mission", workbook=sheet_save)
+    sheet_save = write_sheet(df_base, sheet_name="Mission Locations", workbook=sheet_save)
+
+    # Remove the first worksheet if it's not a local run
+    if not Local_Run:
+      sheet_save.del_worksheet(sheet_save.get_worksheet(0))
+    else:
+      sheet_save.save()
+
+    # Clean up resources
+    del sheet_save
+
+  def print_report(self):
+    from docx import Document
+    from datetime import datetime
+    import kaleido
+    from docx.shared import Inches
+
+      # Create a new Word document
+    doc = Document()
+
+
+    # Add content to the document
+    doc.add_heading(f'ACES Report - Mission Length {self.time}', level=1)
+
+    base_check_status = []
+    asset_check_status = []
+
+    for j in range(len(self.scenario_bases_status[0])):
+      for i in range(len(self.scenario_bases_status)):
+        base_check_status.append(self.scenario_bases_status[i][j])
+        base_check_status[-1]["Time"] = i * step_to_hour
+
+    for j in range(len(self.scenario_assets_status[0])):
+      for i in range(len(self.scenario_assets_status)):
+        asset_check_status.append(self.scenario_assets_status[i][j])
+        asset_check_status[-1]["Time"] = i * step_to_hour
+
+    df_base_status = pd.DataFrame(base_check_status)
+    df_asset_status = pd.DataFrame(asset_check_status)
+
+    columns = ["Time", "Base", "Asset", "Runway"] + list(df_supply_types.index)
+    df_destruction_status = pd.DataFrame(columns=columns)
+
+    # Populate the DataFrame with data from the dictionaries
+    for d in env.scenario_destruction_status:
+        # Fill in missing keys with NaN
+        for col in columns:
+            d.setdefault(col, None)
+
+        # Convert the dictionary to a DataFrame
+        df_d = pd.DataFrame([d], columns=columns)
+
+        # Concatenate the DataFrames
+        df_destruction_status = pd.concat([df_destruction_status, df_d], ignore_index=True)
+    df_destruction_status.fillna(0, inplace=True)
+
+    doc.add_heading("Key Mission Parameters", level=2)
+    doc.add_paragraph(f'Time between turns: {step_to_hour} hours')
+
+    starting_asset_dict = {}
+    for i in df_mission_assets.index:
+      starting_asset_dict[df_mission_assets.loc[i,"Asset Type"]] = starting_asset_dict.get(df_mission_assets.loc[i,"Asset Type"],0) + 1
+
+    ending_asset_dict = {}
+    for asset in self.assets:
+      if not asset.is_destroyed:
+        ending_asset_dict[asset.asset_type] = ending_asset_dict.get(asset.asset_type,0) + 1
+
+    list_assets = []
+    for key in starting_asset_dict.keys():
+      list_assets.append({"Asset" : key, "Starting" : starting_asset_dict.get(key,0), "Ending": ending_asset_dict.get(key), "Losses": starting_asset_dict.get(key,0) - ending_asset_dict.get(key)})
+
+    df_attrition = pd.DataFrame(list_assets)
+    num_rows, num_cols = df_attrition.shape
+    table = doc.add_table(rows=num_rows + 1, cols=num_cols)
+
+    # Add headers to the table
+    for j, header in enumerate(df_attrition.columns):
+        table.cell(0, j).text = header
+
+    # Add data from the DataFrame to the table
+    for i in range(num_rows):
+        for j in range(num_cols):
+            table.cell(i + 1, j).text = str(df_attrition.iloc[i, j])
+
+    doc.add_heading("Priority 1 - Munitions on Target & Sorties Launched", level=2)
+
+    all_sorties = 0
+    prev_status = False
+    prev_asset = df_asset_status["Asset Name"][0]
+    for i in df_asset_status.index:
+      if not (df_asset_status.loc[i,"In Transit"] == prev_status) and prev_asset == df_asset_status.loc[i, "Asset Name"]:
+        all_sorties += 1
+      prev_status = df_asset_status.loc[i,"In Transit"]
+      prev_asset = df_asset_status.loc[i, "Asset Name"]
+    doc.add_paragraph(f'Total Successful Takeoffs: {all_sorties}')
+
+    sorties = 0
+    prev_status = False
+    prev_asset = df_asset_status["Asset Name"][0]
+    for i in df_asset_status.index:
+      if not (df_asset_status.loc[i,"In Transit"] == prev_status) and prev_asset == df_asset_status.loc[i, "Asset Name"] and df_asset_types.loc[df_asset_status.loc[i, "Asset Type"], "Cargo Types"] == "Munitions (lbs)":
+        sorties += 1
+      prev_status = df_asset_status.loc[i,"In Transit"]
+      prev_asset = df_asset_status.loc[i, "Asset Name"]
+    doc.add_paragraph(f'Strike Asset Takeoffs: {sorties}')
+    doc.add_paragraph(f'Support Asset Takeoffs: {all_sorties - sorties}')
+
+    # Group by "Time" and sum the boolean values in the "In Transit" column
+    grouped_df = df_asset_status.groupby("Time")["In Transit"].sum().reset_index()
+
+    # Filter the DataFrame based on the condition
+    condition = df_asset_types.loc[df_asset_status.loc[i, "Asset Type"], "Cargo Types"] == "Munitions (lbs)"
+    filtered_df = df_asset_status[df_asset_status.index.isin(grouped_df.index) & condition]
+
+    # Group by "Time" and sum the boolean values in the "In Transit" column for the filtered data
+    filtered_grouped_df = filtered_df.groupby("Time")["In Transit"].sum().reset_index()
+
+    fig = px.line()
+    fig.add_scatter(x=grouped_df["Time"], y=grouped_df["In Transit"], mode='lines', name="All Assets")
+    fig.add_scatter(x=filtered_grouped_df["Time"], y=filtered_grouped_df["In Transit"], mode='lines', line_shape='linear', name="Strike Assets")
+
+    # Update layout to include both lines in the legend
+    fig.update_layout(
+        legend=dict(
+            orientation="h",  # Adjust orientation if needed
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
+    )
+
+    plot_image_path = 'plot.png'
+    fig.write_image(plot_image_path)
+    doc.add_picture(plot_image_path, width=Inches(5.75))
+
+    for base in self.bases:
+      if base.is_target:
+        doc.add_paragraph(f'{base.name}: Munitions: {base.supplies.get(Munitions_Resource_Name, 0)}lbs')
+
+    doc.add_heading("Priority 2 - Loss Rates from Downrange", level=2)
+    destroyed_step = []
+    for t in df_asset_status["Time"].unique():
+      destroyed_step.append(df_asset_status[(df_asset_status["Time"] == t) & (df_asset_status["In Transit"] == True)]["Is Destroyed"].sum())
+    fig = px.bar(y=destroyed_step, x=df_asset_status["Time"].unique(), title="Cumulative Assets Destroyed due to Air Combat", labels={"x":"Time", "y":"Destroyed Assets"})
+    plot_image_path = 'plot.png'
+    fig.write_image(plot_image_path)
+    doc.add_picture(plot_image_path, width=Inches(5.75))
+
+    doc.add_heading("Priority 3 - Red Team Attack Results", level=2)
+
+    for supply in df_supply_types.index:
+      doc.add_paragraph(f'Total {supply} Destroyed by Red Team: {sum(df_destruction_status[supply])}lbs')
+
+    doc.add_paragraph(f'Total Assets Destroyed by Red Team while Grounded: {df_destruction_status[df_destruction_status["Asset"].notnull() & (df_destruction_status["Asset"] != "")].shape[0]}')
+
+    fig = px.line(df_base_status[df_base_status["Target"]==False], x="Time", y="Runway Length (ft)", color="Base Name", title="Runway Length at All Bases")
+    plot_image_path = 'plot.png'
+    fig.write_image(plot_image_path)
+    doc.add_picture(plot_image_path, width=Inches(5.75))
+
+    doc.add_heading("Priority 4 - Remaining Supplies per Base", level=2)
+    for base in self.bases:
+      if not base.is_target:
+        fig = px.line(df_base_status[df_base_status["Base Name"] == base.name], y=[s for s in df_supply_types.index], x="Time", title=f"{base.name}: Supplies", labels={"x":"Time", "y":"Supplies"}, color_discrete_sequence=px_colors.qualitative.Vivid)
+        plot_image_path = 'plot.png'
+        fig.write_image(plot_image_path)
+        doc.add_picture(plot_image_path, width=Inches(5.75))
+
+    doc.add_heading("Priority 5 - Ground Equipment Losses", level=2)
+    destroyed_step = []
+    ground_assets = df_asset_types[df_asset_types["Type"] == "Ground"].index
+    for t in df_asset_status["Time"].unique():
+      destroyed_step.append(df_asset_status[(df_asset_status["Time"] == t) & (df_asset_status["Asset Type"].isin(ground_assets))]["Is Destroyed"].sum())
+    fig = px.bar(y=destroyed_step, x=df_asset_status["Time"].unique(), title="Cumulative Ground Assets Destroyed", labels={"x":"Time", "y":"Destroyed Assets"})
+    plot_image_path = 'plot.png'
+    fig.write_image(plot_image_path)
+    doc.add_picture(plot_image_path, width=Inches(5.75))
+
+    # Save the document to the specified file path
+    drive.mount('/content/drive')
+    doc.save(folder_path + f'ACES Report - {datetime.now().strftime("%d-%m-%y")}.docx')
+    df_destruction_status.to_csv(folder_path + f'Destruction Report - {datetime.now().strftime("%d-%m-%y")}.csv')
+    df_asset_status.to_csv(folder_path + f'Asset Statuses Report - {datetime.now().strftime("%d-%m-%y")}.csv')
+    df_base_status.to_csv(folder_path + f'Bases Report - {datetime.now().strftime("%d-%m-%y")}.csv')
+    with open(folder_path + f'Textual Report - {datetime.now().strftime("%d-%m-%y")}.txt', 'w') as file:
+      file.write(env.output_capture)
+
+####################################################################################################
+CELL 45: MARKDOWN
+####################################################################################################
+
+### Assets
+
+####################################################################################################
+CELL 46: CODE
+####################################################################################################
+
+class Asset():
+  def __init__(self, asset_type="F15", name="", destination=0, in_transit=False, is_destroyed=False, supplies={}, fuel={}, broken_parts={}, current_latitude=0, current_longitude=0):
+    """
+    Initialize an Asset instance.
+
+    Parameters:
+    - asset_type (str, optional): The type of the asset. Defaults to "F15".
+    - name (str, optional): The name of the asset. Defaults to an empty string.
+    - destination (int, optional): The destination of the asset. Defaults to 0.
+    - in_transit (bool, optional): Indicates if the asset is in transit. Defaults to False.
+    - is_destroyed (bool, optional): Indicates if the asset is destroyed. Defaults to False.
+    - supplies (dict, optional): Initial supplies carried by the asset. Defaults to an empty dictionary.
+    - fuel (dict, optional): Initial fuel levels of the asset. Defaults to an empty dictionary.
+    - broken_parts (dict, optional): Parts that are currently broken on the asset. Defaults to an empty dictionary.
+    - current_latitude (float, optional): The initial latitude of the asset. Defaults to 0.
+    - current_longitude (float, optional): The initial longitude of the asset. Defaults to 0.
+
+    Returns:
+    - None
+    """
+    # Overhead Variables
+    self.name = name
+    self.asset_type = asset_type
+    self.in_transit = in_transit
+    self.ready_timer = 0
+    self.delay = load_time
+    self.is_destroyed = is_destroyed
+
+    # Supply Variables
+    self.supplies = supplies
+    self.fuel = fuel
+    self.broken_parts = broken_parts
+
+    # Location Variables
+    self.destination = destination
+    self.current_latitude = current_latitude
+    self.current_longitude = current_longitude
+
+  def load(self, supplies):
+    """
+    Load supplies onto the asset.
+
+    Parameters:
+    - supplies (dict): Supplies to be loaded onto the asset.
+
+    Returns:
+    - None
+    """
+    # Check if there are supplies to load and the asset is ready
+    if sum(supplies.values()) > 0 and self.ready_timer < 1:
+      # Increase the ready timer by the delay
+      self.ready_timer += self.delay
+
+    # Update the supplies on the asset
+    self.supplies = {key: self.supplies.get(key, 0) + supplies.get(key, 0) for key in df_supply_types.index}
+
+  def unload(self):
+    """
+    Unload supplies from the asset.
+
+    Returns:
+    - dict: Unloaded supplies.
+    """
+    # Reset the ready timer to the delay
+    self.ready_timer = self.delay
+
+    # Reset supplies and fuel on the asset
+    self.supplies = {key: 0 for key in df_supply_types.index}
+    self.fuel = {AvGas_Resource_Name: 0}
+
+    # Return the unloaded supplies
+    return {key: self.supplies.get(key, 0) + self.fuel.get(key, 0) for key in df_supply_types.index}
+
+  def reduce_ready(self):
+    """
+    Reduce the ready delay based on the time step.
+
+    This method is called to decrement the ready timer of the asset by the time step.
+
+    Returns:
+    - None
+    """
+    self.ready_timer -= step_to_hour
+
+  def attack_target(self):
+    """
+    Unload munitions from the asset.
+
+    This method is called to remove munitions from the asset's supplies, simulating an attack.
+
+    Returns:
+    - unload_munitions (dict): Dictionary containing unloaded munitions.
+    """
+    unload_munitions = {Munitions_Resource_Name: self.supplies[Munitions_Resource_Name]}
+    self.supplies[Munitions_Resource_Name] = 0
+    return unload_munitions
+
+  def refuel(self, fuel):
+    """
+    Refuel the asset.
+
+    This method refuels the asset with the provided fuel supplies. It resets the ready_timer,
+    indicating that the asset is ready for action.
+
+    Args:
+    - fuel (dict): Dictionary containing fuel supplies.
+
+    Returns:
+    - None
+    """
+    if sum(fuel.values()) > 0:
+      self.ready_timer = self.delay
+      self.fuel = fuel
+
+  def parts_break(self):
+    """
+    Simulate the breakage of parts on the asset.
+
+    This method simulates the potential breakage of parts based on the asset type's
+    specified break chance. If the accumulated broken parts exceed a threshold,
+    the asset is marked as destroyed.
+
+    Returns:
+    - bool: True if parts break, False otherwise.
+    """
+    break_chance = df_asset_types.loc[self.asset_type, asset_part_break_chance_col]
+    threshold = df_asset_types.loc[self.asset_type, asset_part_threshold_col] * step_to_hour
+
+    if random.randint(0, 100 * percentage_decimal) < break_chance * step_to_hour * percentage_decimal:
+      self.broken_parts[Parts_Resource_Name] += random.randint(
+          df_asset_types.loc[self.asset_type, asset_part_min_col],
+          df_asset_types.loc[self.asset_type, asset_part_max_col],
+      )
+
+      if self.broken_parts.get(Parts_Resource_Name, 0) > threshold:
+        self.in_transit = False
+        self.is_destroyed = True
+        return True
+    return False
+
+  def parts_repair(self):
+    """
+    Repair the broken parts of the asset.
+
+    This method resets the count of broken parts to zero, indicating that
+    the asset's parts have been repaired. It also adds the delay to the
+    ready timer, signifying that the asset is ready for action after repair.
+
+    Returns:
+        None: The function modifies the state of the asset in-place.
+    """
+    # Reset broken parts to zero
+    self.broken_parts = {Parts_Resource_Name: 0}
+
+    # Add delay to the ready timer
+    self.ready_timer += self.delay
+
+  def travel(self):
+    """
+    Move the asset toward its destination.
+
+    This method calculates the movement of the asset based on its speed and the
+    distance to the destination. It also handles fuel consumption and checks for
+    possible part breakage during transit.
+
+    Returns:
+        Tuple[int, bool]: A tuple containing the rewards earned during travel
+                          and a boolean indicating whether any parts broke.
+    """
+    rewards = 0  # Initialize rewards earned during travel
+    did_break = False  # Flag indicating whether any parts broke during travel
+
+    if self.in_transit and not self.is_destroyed:
+      # Check for part breakage during transit
+      did_break = self.parts_break()
+
+      # Calculate remaining distance to destination
+      remaining_distance = self.distance_to_destination() - df_asset_types.loc[self.asset_type, speed_col] * step_to_hour
+
+      if remaining_distance > 0:
+        # Move the asset closer to its destination
+        self.current_latitude, self.current_longitude = move(
+            self.current_latitude, self.current_longitude,
+            df_locations.iloc[self.destination][latitude_col],
+            df_locations.iloc[self.destination][longitude_col],
+            df_asset_types.loc[self.asset_type, speed_col] * step_to_hour
+        )
+      else:
+        # The asset has reached its destination
+        self.current_latitude = df_locations.iloc[self.destination][latitude_col]
+        self.current_longitude = df_locations.iloc[self.destination][longitude_col]
+
+      # Update fuel based on fuel burn rate
+      self.fuel[AvGas_Resource_Name] = self.fuel.get(AvGas_Resource_Name, 0) - df_asset_types.loc[self.asset_type, fuel_burn_col] * step_to_hour
+
+      if self.fuel[AvGas_Resource_Name] < 0:
+        # Out of fuel, mark the asset as destroyed
+        self.is_destroyed = True
+        self.in_transit = False
+        rewards -= df_asset_types.loc[self.asset_type, asset_cost_col]
+
+    return rewards, did_break
+
+  def distance_to_destination(self):
+    """
+    Calculate the straight-line distance to the destination.
+
+    Returns:
+        float: The Euclidean distance between the current location of the asset
+               and its destination.
+    """
+    # Use the lat_lon_distance_calc function to calculate distance
+    return lat_lon_distance_calc(
+        self.current_latitude,
+        self.current_longitude,
+        df_locations.iloc[self.destination][latitude_col],
+        df_locations.iloc[self.destination][longitude_col]
+    )
+
+  def get_destination(self):
+    """
+    Retrieve the current destination of the asset.
+
+    Returns:
+        int: The index representing the current destination of the asset.
+    """
+    return self.destination
+
+  def at_destination(self):
+    """
+    Check if the asset has reached its destination.
+
+    Returns:
+        bool: True if the asset is at its destination, False otherwise.
+    """
+    return (self.current_latitude == df_locations.iloc[self.destination][latitude_col]) and (self.current_longitude == df_locations.iloc[self.destination][longitude_col])
+
+  def land(self):
+    """
+    Check if the asset is ready to land, and if so, land and return True.
+
+    Returns:
+        bool: True if the asset successfully lands, False otherwise.
+    """
+    # Check conditions for landing
+    if (
+        self.at_destination()
+        and self.in_transit
+        and df_locations.iloc[self.destination][base_runway_col] >= df_asset_types.loc[self.asset_type, asset_runway_required_col]
+        and self.ready_timer <= 0
+        and not self.is_destroyed
+        and df_asset_types.loc[self.asset_type, asset_type_col] in df_locations.iloc[self.destination][location_access_col]
+    ):
+        # If not a target location, set in_transit to False upon landing
+        if df_locations.iloc[self.destination][location_target_col] != "TRUE":
+            self.in_transit = False
+        return True  # Asset successfully landed
+    return False  # Asset not ready to land
+
+  def check_threat(self):
+    """
+    Check for threats in the current location.
+
+    Returns:
+        int: Rewards or penalties based on the threat level and asset type.
+    """
+    # Iterate over threat areas
+    for threat in df_threat_areas.index:
+      # Check if the asset is within the threat area and in transit
+      if (
+          in_circle(self.current_latitude, self.current_longitude, df_threat_areas.loc[threat, latitude_col], df_threat_areas.loc[threat, longitude_col], df_threat_areas.loc[threat, radius_col])
+          and self.in_transit
+      ):
+        # Check threat based on asset type
+
+        threat_col = "Air Threat (%)"
+        if df_asset_types.loc[self.asset_type, asset_type_col].lower() == "sea":
+          threat_col = "Sea Threat (%)"
+        if df_asset_types.loc[self.asset_type, asset_type_col].lower() == "land":
+          threat_col = "Ground Threat (%)"
+
+        if random.randint(0, 100 * percentage_decimal) < 1 - (1 - df_threat_areas.loc[threat, threat_col]) ** step_to_hour:
+            # Asset is destroyed
+            self.is_destroyed = True
+            self.in_transit = False
+            return df_asset_types.loc[self.asset_type, asset_cost_col]  # Return rewards or penalties based on the threat level
+    return 0  # Return 0 if no threats are encountered
+
+  def is_ready(self):
+    return self.ready_timer <= 0
+
+  def __str__(self):
+    return f"""
+      Name: {self.name}, Type: {self.asset_type}
+      In Transit: {self.in_transit}, Destroyed: {self.is_destroyed}
+      Destination: {df_locations.index[self.destination]}
+      Lat: {self.current_latitude}, Lon: {self.current_longitude}
+      Fuel: {self.fuel}
+      Supplies: {self.supplies}
+      Delay: {self.ready_timer}  Broken Parts: {self.broken_parts.get(Parts_Resource_Name, 0)}
+    """
+
+  def status_report(self):
+    supplies_report = {i: self.supplies.get(i, 0) for i in df_supply_types.index}
+
+    status_report = {
+        "Name": self.name,
+        "Asset Type": self.asset_type,
+        "Latitude": self.current_latitude,
+        "Longitude": self.current_longitude,
+        "Destination": df_locations.index[self.destination],
+        "Delay": self.ready_timer,
+        "In Transit": self.in_transit,
+        "Is Destroyed": self.is_destroyed,
+        "Fuel": self.fuel.get(AvGas_Resource_Name, 0),
+        "Broken Parts": self.broken_parts.get(Parts_Resource_Name, 0),
+    }
+
+    status_report.update(supplies_report)
+    return status_report
+
+  def save(self):
+    save_state = {
+        mission_asset_name_col: self.name,
+        mission_asset_type_col: self.asset_type,
+        mission_asset_in_transit_col: self.in_transit,
+        mission_asset_destroyed_col: self.is_destroyed,
+        mission_asset_destination_col: df_locations.index[self.destination],
+        latitude_col: self.current_latitude,
+        longitude_col: self.current_longitude,
+        mission_asset_fuel_col: self.fuel.get(AvGas_Resource_Name, 0),
+        mission_asset_broken_parts_col: self.broken_parts.get(Parts_Resource_Name, 0)
+    }
+
+    save_state.update({key: self.supplies.get(key, 0) for key in df_supply_types.index})
+    return save_state
+
+####################################################################################################
+CELL 47: MARKDOWN
+####################################################################################################
+
+### Bases
+
+####################################################################################################
+CELL 48: CODE
+####################################################################################################
+
+class Base():
+  def __init__(self, supplies={}, runway_length=10000, runway_length_max=10000, latitude=0, longitude=0, runway_repair_speed=2,
+                 is_target=False, consume_per_step={Food_Resource_Name: 100}, name="", supply_threshold={}):
+    """
+    Initialize a base object.
+
+    Parameters:
+    - supplies (dict): Initial supplies of the base.
+    - runway_length (int): Initial runway length of the base.
+    - runway_length_max (int): Maximum runway length of the base.
+    - latitude (float): Latitude of the base.
+    - longitude (float): Longitude of the base.
+    - runway_repair_speed (int): Runway repair speed.
+    - is_target (bool): Whether the base is a target.
+    - consume_per_step (dict): Resource consumption per step.
+    - name (str): Name of the base.
+    - supply_threshold (dict): Thresholds for different supplies.
+    """
+    self.is_target = is_target
+    self.name = name
+
+    # Base Supply Variables
+    self.supplies = supplies
+    self.consumption = {
+        Food_Resource_Name: self.supplies.get(Personnel_Resource_Name, 0) * food_per_lb_personnel * step_to_hour,
+        Water_Resource_Name: self.supplies.get(Personnel_Resource_Name, 0) * water_per_lb_personnel * step_to_hour
+    }
+    self.supply_threshold = supply_threshold
+
+    # Base Runway Variables
+    self.runway_length = runway_length
+    self.runway_length_max = runway_length_max
+    self.runway_repair = runway_repair_speed
+
+    self.runway_status = [0] * (int(self.runway_length_max / small_crater_size) + 1)
+
+    # Base Location Variables
+    self.latitude = latitude
+    self.longitude = longitude
+
+  def consume(self):
+    """
+    Consume resources from the base and update supply levels.
+
+    Returns:
+    - deficit (dict): Dictionary containing supplies that went into deficit.
+    """
+    # Refactor the number of resources consumed by the base
+    self.consumption = {
+        Food_Resource_Name: self.supplies.get(Personnel_Resource_Name, 0) * food_per_lb_personnel * step_to_hour,
+        Water_Resource_Name: self.supplies.get(Personnel_Resource_Name, 0) * water_per_lb_personnel * step_to_hour
+    }
+
+    # Remove supplies consumed and update supply level
+    self.supplies = {key: max(0, self.supplies.get(key, 0) - self.consumption.get(key, 0)) for key in df_supply_types.index}
+
+    # For every supply type that's negative, return a negative reward
+    deficit = {key: value for key, value in self.supplies.items() if value < 0}
+    self.supplies = {key: 0 if value < 0 else value for key, value in self.supplies.items()}
+
+    return deficit
+
+  def repair(self):
+    """
+    Repair the base and return rewards.
+
+    Returns:
+    - repair_status (tuple): Tuple containing the difference between the current runway length
+      and the maximum runway length, and a list of information messages related to the repair process.
+    """
+    info_repair = []
+
+    # Check if the base needs repair
+    if self.runway_length >= self.runway_length_max:
+      return 0, info_repair  # No repair needed
+
+    # Check if there are enough personnel for repair
+    if self.supplies.get(Personnel_Resource_Name, 0) < min_personnel_repair:
+      info_repair.append(f"Base: {self.name} does not have enough personnel to repair!")
+      return self.runway_length - self.runway_length_max, info_repair
+
+    info_repair.append(f"Base: {self.name} is repairing damage")
+
+    # Determine the amount of repair material needed
+    available_material = self.supplies.get(Runway_Resource_Name, 0)
+    repair_material_needed = min(self.runway_repair, available_material * material_to_ft * small_crater_size)
+    repairs = 0
+
+    # Perform the repairs on the runway
+    for _ in range(int(repair_material_needed / (material_to_ft * small_crater_size))):
+      for i in range(len(self.runway_status)):
+        if self.runway_status[i] < 0:
+          self.runway_status[i] += 1
+          repairs += 1
+          break
+
+    # Update supplies used for repairs
+    runway_supplies_used = repairs * material_to_ft * small_crater_size
+    self.supplies[Runway_Resource_Name] -= runway_supplies_used
+
+    # Recalculate the runway length
+    self.runway_length_recalc()
+
+    return self.runway_length - self.runway_length_max, info_repair
+
+  def resupply(self, supplies):
+    """
+    Add supplies to the base's supply total.
+
+    Args:
+    - supplies (dict): A dictionary containing supplies to be added to the base.
+
+    Returns:
+    - none
+    """
+    self.supplies = {key: self.supplies.get(key, 0) + supplies.get(key, 0) for key in df_supply_types.index}
+
+  def pickup(self, supplies):
+    """
+    Remove supplies from the base's supply total.
+
+    Args:
+    - supplies (dict): A dictionary containing supplies to be removed from the base.
+
+    Returns:
+    - deficit_sum (int): The sum of negative values representing the deficit in supplies.
+    - remaining_supplies (dict): A dictionary containing the remaining supplies in the base.
+    """
+
+    for key in df_supply_types.index:
+      self_value = self.supplies.get(key, 0)
+      supplies_value = supplies.get(key, 0)
+      self.supplies[key] = self_value - supplies_value
+
+    deficit = {}
+    for key in supplies.keys():
+        if self.supplies.get(key, 0) < 0:
+            deficit[key] = self.supplies[key]
+            supplies[key] += self.supplies[key]
+            self.supplies[key] = 0
+
+    deficit_sum = sum(deficit.values())
+    return deficit_sum, supplies
+
+  def runway_destroy(self, amount_destruction):
+    """
+    Assess runway damage by creating craters on the runway.
+
+    Args:
+    - amount_destruction (float): The amount of destruction, determining the number of craters.
+
+    Returns:
+    None
+    """
+    num_craters = int(amount_destruction / small_crater_size) + 1
+    for _ in range(num_craters):
+      self.runway_status[random.randint(0, len(self.runway_status) - 1)] -= 1
+    self.runway_length_recalc()
+    return num_craters
+
+  def runway_length_recalc(self):
+    """
+    Recalculate the effective runway length after assessing runway damage.
+
+    This function iterates through the runway sections and determines the current effective
+    runway length based on the presence of craters. The maximum effective runway length
+    is updated accordingly.
+
+    Returns:
+    None
+    """
+    current_length = 0
+    max_length = 0
+
+    for section in self.runway_status:
+      if section >= 0:
+        current_length += small_crater_size
+      else:
+        max_length = max(max_length, current_length)
+        current_length = 0
+    self.runway_length = max(max_length, current_length - small_crater_size) if max_length != 0 else current_length - small_crater_size
+
+  def __str__(self):
+    result_string = ''
+    for i in range(0, len(self.runway_status), 10):
+        chunk = self.runway_status[i:i + 10]
+        result_string += '/' if any(value < 0 for value in chunk) else '='
+    return f"""
+      Name: {self.name}
+      Is Target?: {self.is_target}
+      Lat: {self.latitude}, Lon: {self.longitude}
+      Supplies: {self.supplies}
+      Runway Length: {self.runway_length}
+      Runway Status: {self.runway_report_status()}
+    """
+
+  def runway_report_status(self):
+    result_string = ''
+    for i in range(0, len(self.runway_status), 10):
+        chunk = self.runway_status[i:i + 10]
+        result_string += '/' if any(value < 0 for value in chunk) else '='
+    return result_string
+
+  def status_report(self):
+    """
+    Generate a status report for the base.
+
+    Returns a dictionary containing information about the base, including its name,
+    latitude, longitude, runway length, and whether it is a target. Additionally, the
+    supplies inventory is included in the report.
+
+    Args:
+    None
+
+    Returns:
+    dict: A dictionary containing the base status information and supplies inventory.
+    """
+    base_info = {
+        "Name": self.name,
+        "Latitude": self.latitude,
+        "Longitude": self.longitude,
+        "Runway Length": self.runway_length,
+        "Is Target": self.is_target,
+    }
+
+    supplies_info = {i: self.supplies.get(i, 0) for i in df_supply_types.index}
+
+    return {**base_info, **supplies_info}
+
+  def save(self):
+    """
+    Save state information for the base.
+
+    Returns:
+    dict: A dictionary containing base information, supplies inventory, and consumption details.
+    """
+    base_info = {
+        location_name_col: self.name,
+        location_target_col: self.is_target,
+        latitude_col: self.latitude,
+        longitude_col: self.longitude,
+        base_runway_col: self.runway_length,
+        base_runway_max_col: self.runway_length_max,
+        base_runway_repair_col: self.runway_repair,
+
+    }
+
+    supplies_info = {key: self.supplies.get(key, 0) for key in df_supply_types.index}
+    consumption_info = {f"Consume {key}": self.consumption.get(key, 0) for key in df_supply_types.index}
+
+    return {**base_info, **supplies_info, **consumption_info}
+
+  def supply_report(self):
+    return self.supplies
+
+  def runway_report(self):
+    return self.runway_length
+
+####################################################################################################
+CELL 49: MARKDOWN
+####################################################################################################
+
+## Run Environment
+
+####################################################################################################
+CELL 50: CODE
+####################################################################################################
+
+df_locations = read_locations()
+df_mission, df_mission_assets = read_mission_data()
+
+env = LogisticsEnv(render_mode=render_mode, time=mission_time)
+init_obs, initial_info = env.reset()
+full_output = []
+scenario_bases_status = []
+scenario_assets_status = []
+
+####################################################################################################
+CELL 51: CODE
+####################################################################################################
+
+# Check if each asset is assigned a flight plan
+assigned_flag = all(df_mission[df_mission['Order'] == 0].groupby('Asset').size() > 0)
+
+if not assigned_flag:
+  print("ERROR: Some assets are not assigned a flight plan")
+else:
+  stop_flag = False
+  stop_time = 1
+
+  while not stop_flag and env.time < stop_time:
+    env_action = []
+
+    # Iterate through missions with order 0
+    for index in df_mission[df_mission[mission_order_col] == 0].index:
+      mission_data = df_mission.loc[index]
+
+      # Initialize fuel if not already set
+      if mission_data[mission_asset_fuel_col] == -1:
+        mission_data[mission_asset_fuel_col] = int(env.previous_fuel[int(df_mission.loc[index][mission_asset_col])].get(AvGas_Resource_Name, 0))
+
+      action = [int(n) for n in mission_data[3:]]
+      env_action.append(action)
+
+      # Update destination if not scheduled for the current time
+      if not (mission_data[mission_schedule_col] == env.time or mission_data[mission_schedule_col] == -1):
+        env_action[-1][0] = env.assets[int(df_mission.loc[index][mission_asset_col])].get_destination()
+
+    # Execute the environment step with the generated action
+    output = env.step(env_action)
+    full_output.append(output)
+
+    # Check for stop events in the output events
+    for event in output[4]:
+      for stop in stop_events:
+        if stop in event:
+          if not stop_flag:
+            print(f"The reason for the stop was: {stop}")
+            stop_flag = True
+            break
+
+  # Check if the stopping condition was due to exceeding time
+  if not stop_flag and env.time >= stop_time:
+      print("The reason for the stop was: Time Exceeded")
+
+[OUTPUT]
+/usr/local/lib/python3.10/dist-packages/ipykernel/ipkernel.py:283: DeprecationWarning:
+
+`should_run_async` will not call `transform_cell` automatically in the future. Please pass the result to `transformed_cell` argument and any exception that happen during thetransform in `preprocessing_exc_tuple` in IPython 7.17 and above.
+
+The reason for the stop was: Time Exceeded
+
+####################################################################################################
+CELL 52: CODE
+####################################################################################################
+
+env.print_report()
+
+####################################################################################################
+CELL 53: MARKDOWN
+####################################################################################################
+
+# Stable Baselines3
+
+####################################################################################################
+CELL 54: CODE
+####################################################################################################
+
+df_locations = read_locations()
+df_mission, df_mission_assets = read_mission_data()
+
+env = LogisticsEnv(render_mode=render_mode, time=mission_time)
+init_obs, initial_info = env.reset()
+full_output = []
+scenario_bases_status = []
+scenario_assets_status = []
+
+####################################################################################################
+CELL 55: CODE
+####################################################################################################
+
+!pip install stable-baselines3
+
+[OUTPUT]
+Collecting stable-baselines3
+  Downloading stable_baselines3-2.2.1-py3-none-any.whl (181 kB)
+[?25l     [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/181.7 kB[0m [31m?[0m eta [36m-:--:--[0m[2K     [91m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[91m╸[0m[90m━━━━━━━━[0m [32m143.4/181.7 kB[0m [31m4.3 MB/s[0m eta [36m0:00:01[0m[2K     [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m181.7/181.7 kB[0m [31m3.9 MB/s[0m eta [36m0:00:00[0m
+[?25hRequirement already sati
+####################################################################################################
+CELL 56: CODE
+####################################################################################################
+
+from stable_baselines3 import A2C
+
+# Now you can create the A2C agent
+a2c_agent = A2C("MlpPolicy", env, verbose=1)
+a2c_agent.learn(total_timesteps=5000)
+
+[OUTPUT]
+Using cpu device
+Wrapping the env with a `Monitor` wrapper
+Wrapping the env in a DummyVecEnv.
+-------------------------------------
+| rollout/              |           |
+|    ep_len_mean        | 241       |
+|    ep_rew_mean        | -2.32e+14 |
+| time/                 |           |
+|    fps                | 1         |
+|    iterations         | 100       |
+|    time_elapsed       | 379       |
+|    total_timesteps    | 500       |
+| train/                |           |
+|    entropy_loss       | ['<stable_baselines3.a2c.a2c.A2C at 0x7da393c3e6e0>']
+####################################################################################################
+CELL 57: CODE
+####################################################################################################
+
+from stable_baselines3 import PPO
+
+# Create the Multi-Agent PPO agent
+multi_agent_ppo = PPO("MlpPolicy", env, verbose=1)
+
+# Train the agent
+multi_agent_ppo.learn(total_timesteps=10)
+
+# Save the trained model
+multi_agent_ppo.save("multi_agent_ppo_model")
+
+
+[OUTPUT]
+/usr/local/lib/python3.10/dist-packages/ipykernel/ipkernel.py:283: DeprecationWarning:
+
+`should_run_async` will not call `transform_cell` automatically in the future. Please pass the result to `transformed_cell` argument and any exception that happen during thetransform in `preprocessing_exc_tuple` in IPython 7.17 and above.
+
+Using cpu device
+Wrapping the env with a `Monitor` wrapper
+Wrapping the env in a DummyVecEnv.
+<ipython-input-28-0a17432e6342>:65: RuntimeWarning:
+
+invalid value encountered in divide
+
+<ipython-input-28-0a17432e6342>:70: RuntimeWarning:
+
+invalid value encountered in divide
+
+
+####################################################################################################
+CELL 58: CODE
+####################################################################################################
+
+def sample_valid_action():
+  action_space = env.action_space
+  action = [np.random.randint(0, nvec) for nvec in action_space.nvec]
+  return action
+
+obs = env.reset()
+for _ in range(10):
+  action = sample_valid_action()
+  obs, _, done, _, _ = env.step(action)
+  env.render()
+
+# Close the environment when done
+env.close()
+
+[OUTPUT]
+<ipython-input-66-0a17432e6342>:65: RuntimeWarning:
+
+invalid value encountered in divide
+
+<ipython-input-66-0a17432e6342>:70: RuntimeWarning:
+
+invalid value encountered in divide
+
+<ipython-input-66-0a17432e6342>:565: RuntimeWarning:
+
+invalid value encountered in long_scalars
+
+Drive already mounted at /content/drive; to attempt to forcibly remount, call drive.mount("/content/drive", force_remount=True).
+Drive already mounted at /content/drive; to attempt to forcibly remount, call drive.mount("/content/drive", force_remount=True).
+Drive already mounted at /content/drive; to attempt to forcibly remount, call drive.mount("/content/drive", force_remount=True).
+Drive already mounted at /content/drive; to attempt to forcibly remount, call drive.mount("/content/drive", force
+####################################################################################################
+CELL 59: CODE
+####################################################################################################
+
+obs = env.reset()
+
+[OUTPUT]
+<ipython-input-66-0a17432e6342>:65: RuntimeWarning:
+
+invalid value encountered in divide
+
+<ipython-input-66-0a17432e6342>:70: RuntimeWarning:
+
+invalid value encountered in divide
+
+
+####################################################################################################
+CELL 60: CODE
+####################################################################################################
+
+obs
+
+[OUTPUT]
+/usr/local/lib/python3.10/dist-packages/ipykernel/ipkernel.py:283: DeprecationWarning:
+
+`should_run_async` will not call `transform_cell` automatically in the future. Please pass the result to `transformed_cell` argument and any exception that happen during thetransform in `preprocessing_exc_tuple` in IPython 7.17 and above.
+
+['(array([0.037734 , 0.8051619, 0.       , ..., 0.01     , 0.01     ,\n', '        0.02     ], dtype=float32),\n', " ['ASSETS PERFORMING ACTIONS',\n", "  'Asset F15 s1-6 is loading supplies and 54718 lbs of fuel',\n", "  'Asset 25k K-Loader 1 is loading supplies and 0 lbs of fuel',\n", "  'Asset 25k K-Loader 2 is loading supplies and 0 lbs of fuel',\n", "  'Asset 60k K-Loader 1 is loading supplies and 0 lbs of fuel',\n", "  'Asset 60k K-Loader 2 is loading supplies and 0 lbs of fuel',\n", "  'As
