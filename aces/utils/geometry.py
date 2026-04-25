@@ -5,6 +5,23 @@ Never use Euclidean lat/lon distance — it distorts at non-equatorial latitudes
 """
 import math
 from typing import Tuple
+from dataclasses import dataclass
+
+
+@dataclass
+class Point2D:
+    """2D point with latitude and longitude coordinates."""
+    x: float  # longitude
+    y: float  # latitude
+
+    def to_array(self) -> Tuple[float, float]:
+        """Convert to (x, y) tuple."""
+        return (self.x, self.y)
+
+    def distance_to(self, other: 'Point2D') -> float:
+        """Calculate haversine distance to another point in nautical miles."""
+        return haversine_nm(self.y, self.x, other.y, other.x)
+
 
 EARTH_RADIUS_NM = 3440.065  # nautical miles
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from aces.config import FUEL_LEVELS, SUPPLY_LEVELS, SUPPLY_TYPES
+from aces.config import FUEL_LEVELS, SUPPLY_LEVELS, SUPPLY_PRIORITIES
 from aces.spaces.action import ActionBuilder
 
 
@@ -35,9 +35,9 @@ class ActionMasker:
                 # Can redirect destination, but cannot load supplies
                 mask[offsets["fuel_start"]:offsets["fuel_end"]] = False
                 mask[offsets["fuel_start"]] = True  # 0% (no load) must be valid
-                for s_start in offsets["supply_starts"]:
-                    mask[s_start:s_start + len(SUPPLY_LEVELS)] = False
-                    mask[s_start] = True  # 0% must be valid
+                for p_start in offsets["priority_starts"]:
+                    mask[p_start:p_start + len(SUPPLY_LEVELS)] = False
+                    mask[p_start] = True  # 0% must be valid
             else:
                 # At base — mask destinations with runway too short for this asset type
                 for j, base in enumerate(bases):
@@ -53,28 +53,34 @@ class ActionMasker:
                     )
                     mask[offsets["dest_start"] + current_idx] = True
 
-                # Mask fuel levels beyond remaining capacity
-                space = max(0.0, asset.type.fuel_capacity_lbs - asset.fuel_lbs)
+                # Mask fuel levels beyond remaining capacity and reserve requirements
+                max_fuel_to_load = asset.type.fuel_capacity_lbs - asset.fuel_lbs
+                min_reserve = asset.type.fuel_capacity_lbs * self.ab.scenario.mission_config.min_fuel_reserve_pct / 100.0
+                effective_capacity = max(0.0, asset.type.fuel_capacity_lbs - min_reserve - asset.fuel_lbs)
+                
                 for level_idx, pct in enumerate(FUEL_LEVELS):
                     requested = asset.type.fuel_capacity_lbs * pct / 100.0
-                    if requested > space + 1.0:  # +1 tolerance
+                    if requested > effective_capacity + 1.0:  # +1 tolerance
                         mask[offsets["fuel_start"] + level_idx] = False
                 if not mask[offsets["fuel_start"]:offsets["fuel_end"]].any():
                     mask[offsets["fuel_start"]] = True  # 0% always allowed
 
-                # Mask supply levels beyond cargo capacity or base availability
+                # Mask priority levels beyond cargo capacity or base availability
                 current_base = next(
                     (b for b in bases if b.config.id == asset.current_installation_id), None
                 )
-                for s_idx, st in enumerate(SUPPLY_TYPES):
-                    s_start = offsets["supply_starts"][s_idx]
-                    available_at_base = current_base.supplies.get(st.value, 0.0) if current_base else 0.0
+                for p_idx, priority_name in enumerate(SUPPLY_PRIORITIES.keys()):
+                    p_start = offsets["priority_starts"][p_idx]
+                    # Calculate total available supplies in this priority group
+                    priority_supplies = SUPPLY_PRIORITIES[priority_name]
+                    total_available = sum(current_base.supplies.get(st.value, 0.0) for st in priority_supplies) if current_base else 0.0
                     cargo_space = max(0.0, asset.type.max_cargo_weight_lbs - asset.cargo_weight_lbs)
+                    
                     for level_idx, pct in enumerate(SUPPLY_LEVELS):
-                        requested = available_at_base * pct / 100.0
+                        requested = total_available * pct / 100.0
                         if requested > cargo_space + 1.0:
-                            mask[s_start + level_idx] = False
-                    if not mask[s_start:s_start + len(SUPPLY_LEVELS)].any():
-                        mask[s_start] = True  # 0% always allowed
+                            mask[p_start + level_idx] = False
+                    if not mask[p_start:p_start + len(SUPPLY_LEVELS)].any():
+                        mask[p_start] = True  # 0% always allowed
 
         return mask

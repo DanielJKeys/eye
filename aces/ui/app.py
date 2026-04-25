@@ -34,22 +34,51 @@ ACES Platform is a military logistics simulation and AI decision-support tool.
 Select a page from the sidebar to begin.
 """)
 
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 
 with col1:
+    st.subheader("Scenario Editor")
+    st.write("Add, edit, or remove asset types, installations, threats, and attack schedules.")
+    st.page_link("pages/1_Scenario_Editor.py", label="Open Scenario Editor")
+
+with col2:
     st.subheader("Mission Planner")
     st.write("Configure scenarios, select an agent, and launch a full automated run.")
     st.page_link("pages/2_Mission_Planner.py", label="Open Mission Planner")
 
-with col2:
+with col3:
+    st.subheader("Live Dashboard")
+    st.write("Monitor real-time mission progress, agent decisions, and system status.")
+    st.page_link("pages/3_Live_Dashboard.py", label="Open Live Dashboard")
+
+with col4:
     st.subheader("Debug Console")
     st.write("Step through missions manually. Review and override agent decisions at each timestep.")
     st.page_link("pages/4_Debug_Console.py", label="Open Debug Console")
 
-with col3:
-    st.subheader("Scenario Editor")
-    st.write("Add, edit, or remove asset types, installations, threats, and attack schedules.")
-    st.page_link("pages/1_Scenario_Editor.py", label="Open Scenario Editor")
+st.divider()
+
+col5, col6, col7, col8 = st.columns(4)
+
+with col5:
+    st.subheader("Analysis")
+    st.write("Analyze mission results, performance metrics, and strategic insights.")
+    st.page_link("pages/5_Analysis.py", label="Open Analysis")
+
+with col6:
+    st.subheader("Decision Support")
+    st.write("Real-time decision support with recommendations and risk alerts.")
+    st.page_link("pages/6_Decision_Support_Dashboard.py", label="Open Decision Support")
+
+with col7:
+    st.subheader("Strategy Analysis")
+    st.write("Compare and benchmark different reinforcement learning algorithms.")
+    st.page_link("pages/7_Strategy_Analysis.py", label="Open Strategy Analysis")
+
+with col8:
+    st.subheader("Resource Planning")
+    st.write("Optimize supply chains, deploy assets, and allocate resources.")
+    st.page_link("pages/8_Resource_Planning.py", label="Open Resource Planning")
 
 st.divider()
 

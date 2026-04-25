@@ -118,6 +118,10 @@ class LogisticsEnv(gym.Env):
             if dest_cfg is None:
                 continue
             asset.travel_step(dest_cfg.latitude, dest_cfg.longitude, self.mc.step_to_hour)
+            # Reward efficient routing (shorter paths are better)
+            from aces.utils.geometry import haversine_nm
+            distance_nm = haversine_nm(asset.latitude, asset.longitude, dest_cfg.latitude, dest_cfg.longitude)
+            reward += self._reward_shaper.efficient_routing(distance_nm)
             if asset.at_destination(dest_cfg.latitude, dest_cfg.longitude):
                 dest_base = self._base_for_id(asset.destination_installation_id)
                 if dest_base and dest_base.can_operate(asset.type.runway_required_ft):
@@ -126,6 +130,8 @@ class LogisticsEnv(gym.Env):
                         dest_cfg.latitude, dest_cfg.longitude,
                     )
                     reward += self._receive_delivery(dest_base, delivered, dest_base.config.is_target)
+                    # Reward timely delivery
+                    reward += self._reward_shaper.timely_delivery()
 
         # 4. Per-base consumption and runway repair
         for base in self.bases:
@@ -142,8 +148,17 @@ class LogisticsEnv(gym.Env):
                 exposure = asset.threat_exposure(self.threat_zones)
                 if exposure > 0:
                     reward += self._reward_shaper.threat_exposure(exposure)
+                else:
+                    # Reward for avoiding threats
+                    reward += self._reward_shaper.risk_avoidance()
 
-        # 7. Missile alerts for next step
+        # 7. Asset utilization rewards
+        for asset in self.assets:
+            if not asset.is_destroyed and asset.in_transit:
+                # Reward for keeping assets active (flying)
+                reward += self._reward_shaper.asset_utilization(self.mc.step_to_hour)
+
+        # 8. Missile alerts for next step
         self._update_missile_alerts()
 
         # 8. Snapshot for history / UI
@@ -220,14 +235,24 @@ class LogisticsEnv(gym.Env):
             taken = current_base.pickup(SupplyType.AVGAS.value, requested_fuel)
             asset.load_fuel(taken)
 
-        # Load supplies
-        for st in SUPPLY_TYPES:
-            pct = act["supply_pcts"].get(st.value, 0)
-            if pct > 0 and st.value in (asset.type.cargo_types or [st.value for st in SUPPLY_TYPES]):
-                available = current_base.supplies.get(st.value, 0.0)
-                requested = available * pct / 100.0
-                taken = current_base.pickup(st.value, requested)
-                asset.load_supply(st.value, taken)
+        # Load supplies by priority
+        from aces.config import SUPPLY_PRIORITIES
+        for priority_name, pct in act["priority_pcts"].items():
+            if pct > 0:
+                # Load supplies in this priority group proportionally
+                priority_supplies = SUPPLY_PRIORITIES[priority_name]
+                total_available = sum(current_base.supplies.get(st.value, 0.0) for st in priority_supplies)
+                if total_available > 0:
+                    # Distribute the requested percentage across available supplies in this priority
+                    for st in priority_supplies:
+                        if st.value in (asset.type.cargo_types or [s.value for s in SUPPLY_TYPES]):
+                            available = current_base.supplies.get(st.value, 0.0)
+                            if available > 0:
+                                # Calculate proportional share of this priority's allocation
+                                priority_share = available / total_available
+                                requested = available * pct / 100.0 * priority_share
+                                taken = current_base.pickup(st.value, requested)
+                                asset.load_supply(st.value, taken)
 
         return reward
 

@@ -3,7 +3,7 @@
 Each asset gets:
   - 1 dimension  : destination (n_bases choices, index 0..n_bases-1)
   - 1 dimension  : fuel load level (5 choices: 0/25/50/75/100 % of capacity)
-  - N dimensions : supply load level per supply type (5 choices each: 0/25/50/75/100 % of available)
+  - 4 dimensions : supply priority load levels (4 priorities × 3 amounts each)
 
 Action levels map:  0→0%, 1→25%, 2→50%, 3→75%, 4→100%
 
@@ -14,25 +14,26 @@ from __future__ import annotations
 import numpy as np
 from gymnasium import spaces
 
-from aces.config import FUEL_LEVELS, N_SUPPLY_TYPES, SUPPLY_LEVELS, ScenarioConfig
+from aces.config import FUEL_LEVELS, N_SUPPLY_PRIORITIES, SUPPLY_LEVELS, ScenarioConfig
 
 
 class ActionBuilder:
     def __init__(self, scenario: ScenarioConfig) -> None:
+        self.scenario = scenario
         self.n_bases = len(scenario.installations)
         self.n_assets = len(scenario.mission_assets)
-        self.n_supply = N_SUPPLY_TYPES
+        self.n_priorities = N_SUPPLY_PRIORITIES
 
-        # dims_per_asset = 1 (dest) + 1 (fuel) + n_supply
-        self.dims_per_asset = 2 + self.n_supply
+        # dims_per_asset = 1 (dest) + 1 (fuel) + n_priorities
+        self.dims_per_asset = 2 + self.n_priorities
 
         # nvec: number of choices per action dimension
         self.nvec: list[int] = []
         for _ in range(self.n_assets):
             self.nvec.append(self.n_bases)  # destination
             self.nvec.append(len(FUEL_LEVELS))  # fuel level
-            for _ in range(self.n_supply):
-                self.nvec.append(len(SUPPLY_LEVELS))  # supply level
+            for _ in range(self.n_priorities):
+                self.nvec.append(len(SUPPLY_LEVELS))  # priority level
 
         self.total_dims = len(self.nvec)
         self.mask_size = sum(self.nvec)
@@ -43,19 +44,19 @@ class ActionBuilder:
 
     def decode(self, action: np.ndarray) -> list[dict]:
         """Convert flat action array into per-asset action dictionaries."""
-        from aces.config import SUPPLY_TYPES
+        from aces.config import SUPPLY_PRIORITIES
         result = []
         dim = 0
         for _ in range(self.n_assets):
             dest_idx = int(action[dim]); dim += 1
             fuel_level = FUEL_LEVELS[int(action[dim])]; dim += 1
-            supply_pcts: dict[str, int] = {}
-            for st in SUPPLY_TYPES:
-                supply_pcts[st.value] = SUPPLY_LEVELS[int(action[dim])]; dim += 1
+            priority_pcts: dict[str, int] = {}
+            for priority_name in SUPPLY_PRIORITIES.keys():
+                priority_pcts[priority_name] = SUPPLY_LEVELS[int(action[dim])]; dim += 1
             result.append({
                 "destination_idx": dest_idx,
                 "fuel_pct": fuel_level,
-                "supply_pcts": supply_pcts,
+                "priority_pcts": priority_pcts,
             })
         return result
 
@@ -69,7 +70,7 @@ class ActionBuilder:
         for i in range(asset_idx):
             offset += self.nvec[i * self.dims_per_asset]      # dest
             offset += self.nvec[i * self.dims_per_asset + 1]  # fuel
-            for j in range(self.n_supply):
+            for j in range(self.n_priorities):
                 offset += self.nvec[i * self.dims_per_asset + 2 + j]
         end = offset
         for j in range(self.dims_per_asset):
@@ -85,8 +86,8 @@ class ActionBuilder:
             "dest_end": offset + self.n_bases,
             "fuel_start": offset + self.n_bases,
             "fuel_end": offset + self.n_bases + len(FUEL_LEVELS),
-            "supply_starts": [
+            "priority_starts": [
                 offset + self.n_bases + len(FUEL_LEVELS) + i * len(SUPPLY_LEVELS)
-                for i in range(self.n_supply)
+                for i in range(self.n_priorities)
             ],
         }

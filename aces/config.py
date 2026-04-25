@@ -28,6 +28,15 @@ FUEL_LEVELS: list[int] = [0, 25, 50, 75, 100]
 SUPPLY_LEVELS: list[int] = [0, 25, 50, 75, 100]
 N_LEVELS: int = len(FUEL_LEVELS)
 
+# Supply priority hierarchy for realistic loading decisions
+SUPPLY_PRIORITIES = {
+    "CRITICAL": [SupplyType.MUNITIONS, SupplyType.AVGAS],
+    "ESSENTIAL": [SupplyType.FOOD, SupplyType.WATER],
+    "MAINTENANCE": [SupplyType.PARTS, SupplyType.RUNWAY_MATERIAL],
+    "SUPPORT": [SupplyType.ELECTRICITY, SupplyType.MOGAS]
+}
+N_SUPPLY_PRIORITIES: int = len(SUPPLY_PRIORITIES)
+
 
 # ---------------------------------------------------------------------------
 # Mission-level tunable parameters
@@ -45,6 +54,11 @@ class MissionConfig:
     weight_per_person_lbs: float = 220.0   # cargo weight per transported person
     material_to_ft_ratio: float = 8000.0  # lbs of runway material per foot repaired
     arrival_radius_nm: float = 10.0        # nautical miles — counts as "arrived"
+    
+    # Fuel planning constraints for realism
+    min_fuel_reserve_pct: float = 15.0     # Must keep 15% fuel reserve
+    fuel_safety_margin_pct: float = 20.0   # Extra fuel for contingencies
+    max_flight_time_hr: float = 8.0        # Max continuous flight time
 
 
 @dataclass
@@ -55,6 +69,12 @@ class RewardConfig:
     base_runway_destroyed: float = -25.0       # when runway hits 0
     threat_exposure_per_step: float = -0.5     # per step inside a threat zone
     mission_complete_bonus: float = 100.0
+    
+    # Intermediate rewards for better learning
+    efficient_routing_per_nm: float = 0.1      # Reward for optimal path selection
+    timely_delivery_bonus: float = 5.0         # Bonus for on-schedule delivery
+    risk_avoidance_per_step: float = 0.5       # Reward for avoiding threats
+    asset_utilization_per_hr: float = 0.2      # Reward for keeping assets productive
 
 
 @dataclass
