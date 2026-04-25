@@ -45,6 +45,31 @@ This runs a quick validation that confirms:
 - Environment can be created and stepped
 - Action masking functions properly
 
+## Docker Support
+
+A Dockerfile is included for containerizing the EYE Platform.
+
+### Build locally
+```bash
+docker build -t eye-platform:local .
+```
+
+### Run locally
+```bash
+docker run --rm -p 8501:8501 eye-platform:local
+```
+
+Then open `http://localhost:8501`.
+
+### GitHub Container Registry
+
+A GitHub Actions workflow is included at `.github/workflows/docker-build-push.yml`.
+When pushed to `main`, it builds the Docker image and publishes it to GitHub Container Registry as:
+- `ghcr.io/<OWNER>/eye-platform:latest`
+- `ghcr.io/<OWNER>/eye-platform:<COMMIT_SHA>`
+
+> Note: GitHub itself does not host running containers like a PaaS. The workflow publishes the container image to GHCR for free, and you can deploy that image to a container host such as Fly, Railway, Render, or another free tier provider.
+
 ## Running the System
 
 ### 1. Interactive UI (Recommended for Beginners)
