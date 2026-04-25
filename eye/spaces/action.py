@@ -3,7 +3,7 @@
 Each asset gets:
   - 1 dimension  : destination (n_bases choices, index 0..n_bases-1)
   - 1 dimension  : fuel load level (5 choices: 0/25/50/75/100 % of capacity)
-  - 4 dimensions : supply priority load levels (4 priorities × 3 amounts each)
+  - 4 dimensions : supply priority load levels (4 priorities × 5 amounts each)
 
 Action levels map:  0→0%, 1→25%, 2→50%, 3→75%, 4→100%
 
@@ -14,7 +14,7 @@ from __future__ import annotations
 import numpy as np
 from gymnasium import spaces
 
-from eye.config import FUEL_LEVELS, N_SUPPLY_PRIORITIES, SUPPLY_LEVELS, ScenarioConfig
+from eye.config import FUEL_LEVELS, N_SUPPLY_PRIORITIES, SUPPLY_LEVELS, SUPPLY_PRIORITIES, ScenarioConfig
 
 
 class ActionBuilder:
@@ -44,7 +44,6 @@ class ActionBuilder:
 
     def decode(self, action: np.ndarray) -> list[dict]:
         """Convert flat action array into per-asset action dictionaries."""
-        from eye.config import SUPPLY_PRIORITIES
         result = []
         dim = 0
         for _ in range(self.n_assets):

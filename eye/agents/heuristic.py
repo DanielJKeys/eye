@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from eye.config import FUEL_LEVELS, SUPPLY_LEVELS, SUPPLY_TYPES, SupplyType
+from eye.config import FUEL_LEVELS, SUPPLY_LEVELS, SUPPLY_PRIORITIES, SupplyType
 from eye.spaces.action import ActionBuilder
 
 
@@ -23,7 +23,6 @@ class HeuristicAgent:
         self.ab = action_builder
 
     def predict(self, obs: np.ndarray, bases, assets, installations) -> np.ndarray:
-        from eye.config import ScenarioConfig
         action = np.zeros(self.ab.total_dims, dtype=np.int64)
         dim = 0
 
@@ -35,7 +34,7 @@ class HeuristicAgent:
                 # Keep current destination, no loading
                 action[dim] = 0; dim += 1  # dest (irrelevant when in transit)
                 action[dim] = 0; dim += 1  # fuel 0%
-                for _ in SUPPLY_TYPES:
+                for _ in SUPPLY_PRIORITIES:
                     action[dim] = 0; dim += 1
                 continue
 
@@ -63,14 +62,14 @@ class HeuristicAgent:
             else:
                 action[dim] = 0; dim += 1  # 0% (no need)
 
-            # Supplies: load munitions to 100%, others at 25%
-            for st in SUPPLY_TYPES:
-                if st == SupplyType.MUNITIONS and chosen_dest in target_indices:
-                    action[dim] = len(SUPPLY_LEVELS) - 1  # 100%
-                elif chosen_dest not in target_indices and bases[current_base].supplies.get(st.value, 0.0) > 0:
-                    action[dim] = 1  # 25%
+            # Supply priorities: 4 dims matching the action space (CRITICAL/ESSENTIAL/MAINTENANCE/SUPPORT)
+            for priority_name in SUPPLY_PRIORITIES.keys():
+                if priority_name == "CRITICAL" and chosen_dest in target_indices:
+                    action[dim] = len(SUPPLY_LEVELS) - 1  # 100% — fill munitions + fuel for attack run
+                elif chosen_dest != current_base:
+                    action[dim] = 1  # 25% general resupply when flying somewhere
                 else:
-                    action[dim] = 0
+                    action[dim] = 0  # no load if staying put
                 dim += 1
 
         return action

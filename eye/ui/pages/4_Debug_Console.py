@@ -9,7 +9,7 @@ The user can:
 import numpy as np
 import streamlit as st
 
-from eye.config import FUEL_LEVELS, SUPPLY_LEVELS, SUPPLY_TYPES
+from eye.config import FUEL_LEVELS, SUPPLY_LEVELS, SUPPLY_PRIORITIES
 from eye.services.scenario import ScenarioService
 from eye.services.simulation import SimulationService
 from eye.spaces.action import ActionBuilder
@@ -87,7 +87,7 @@ install_names = [b["name"] for b in bases_data]
 
 # Get agent suggestion
 suggested = sim.get_agent_suggestion() if not sim.is_terminated() else None
-agent_actions = ab.decode(suggested) if suggested is not None else [{"destination_idx": 0, "fuel_pct": 0, "supply_pcts": {st.value: 0 for st in SUPPLY_TYPES}} for _ in assets_data]
+agent_actions = ab.decode(suggested) if suggested is not None else [{"destination_idx": 0, "fuel_pct": 0, "priority_pcts": {p: 0 for p in SUPPLY_PRIORITIES}} for _ in assets_data]
 
 override = st.session_state.get("debug_override", {})
 
@@ -105,7 +105,7 @@ for i, (asset, ag_act) in enumerate(zip(assets_data, agent_actions)):
             dest_idx = ag_act["destination_idx"]
             st.write(f"Destination: **{install_names[dest_idx] if dest_idx < len(install_names) else '?'}**")
             override[i] = {"destination_idx": dest_idx, "fuel_pct": 0,
-                           "supply_pcts": {st.value: 0 for st in SUPPLY_TYPES}}
+                           "priority_pcts": {p: 0 for p in SUPPLY_PRIORITIES}}
             continue
 
         c1, c2 = st.columns(2)
@@ -123,18 +123,18 @@ for i, (asset, ag_act) in enumerate(zip(assets_data, agent_actions)):
         )
         fuel_pct = int(fuel_lvl.replace("%", ""))
 
-        st.markdown("Supply Loads")
-        supply_cols = st.columns(4)
-        supply_pcts = {}
-        for j, st_type in enumerate(SUPPLY_TYPES):
-            ag_pct = ag_act["supply_pcts"].get(st_type.value, 0)
-            chosen = supply_cols[j % 4].select_slider(
-                st_type.value, options=[f"{p}%" for p in SUPPLY_LEVELS],
-                value=f"{ag_pct}%", key=f"sup_{i}_{j}",
+        st.markdown("Supply Priority Loads")
+        priority_cols = st.columns(4)
+        priority_pcts = {}
+        for j, priority_name in enumerate(SUPPLY_PRIORITIES.keys()):
+            ag_pct = ag_act["priority_pcts"].get(priority_name, 0)
+            chosen = priority_cols[j].select_slider(
+                priority_name, options=[f"{p}%" for p in SUPPLY_LEVELS],
+                value=f"{ag_pct}%", key=f"pri_{i}_{j}",
             )
-            supply_pcts[st_type.value] = int(chosen.replace("%", ""))
+            priority_pcts[priority_name] = int(chosen.replace("%", ""))
 
-        override[i] = {"destination_idx": dest_idx_chosen, "fuel_pct": fuel_pct, "supply_pcts": supply_pcts}
+        override[i] = {"destination_idx": dest_idx_chosen, "fuel_pct": fuel_pct, "priority_pcts": priority_pcts}
 
 st.session_state.debug_override = override
 
@@ -151,8 +151,8 @@ def _build_override_action() -> np.ndarray:
         fuel_pct = act.get("fuel_pct", 0)
         fuel_idx = FUEL_LEVELS.index(fuel_pct) if fuel_pct in FUEL_LEVELS else 0
         action[dim] = fuel_idx; dim += 1
-        for st_type in SUPPLY_TYPES:
-            sp = act.get("supply_pcts", {}).get(st_type.value, 0)
+        for priority_name in SUPPLY_PRIORITIES.keys():
+            sp = act.get("priority_pcts", {}).get(priority_name, 0)
             sp_idx = SUPPLY_LEVELS.index(sp) if sp in SUPPLY_LEVELS else 0
             action[dim] = sp_idx; dim += 1
     return action

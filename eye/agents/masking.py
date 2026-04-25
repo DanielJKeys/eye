@@ -54,7 +54,6 @@ class ActionMasker:
                     mask[offsets["dest_start"] + current_idx] = True
 
                 # Mask fuel levels beyond remaining capacity and reserve requirements
-                max_fuel_to_load = asset.type.fuel_capacity_lbs - asset.fuel_lbs
                 min_reserve = asset.type.fuel_capacity_lbs * self.ab.scenario.mission_config.min_fuel_reserve_pct / 100.0
                 effective_capacity = max(0.0, asset.type.fuel_capacity_lbs - min_reserve - asset.fuel_lbs)
                 

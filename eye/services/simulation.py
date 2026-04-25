@@ -10,7 +10,7 @@ from typing import Optional
 
 import numpy as np
 
-from eye.config import ScenarioConfig, TrainingConfig
+from eye.config import ScenarioConfig
 from eye.domain.environment import LogisticsEnv
 from eye.agents.heuristic import HeuristicAgent
 from eye.spaces.action import ActionBuilder
@@ -77,12 +77,11 @@ class SimulationService:
     def run_to_event(self) -> list[dict]:
         """Run until a missile strike, asset destruction, or mission end. Returns step snapshots."""
         snapshots = []
+        already_destroyed = {a.name for a in self.env.assets if a.is_destroyed} if self.env else set()
         while not self._terminated:
             snap = self.step()
             snapshots.append(snap)
-            info = snap.get("info", {})
-            # Pause on destruction events or mission end
-            if snap.get("terminated") or self._check_destruction_occurred():
+            if snap.get("terminated") or self._check_destruction_occurred(already_destroyed):
                 break
             if len(snapshots) > 500:  # safety guard
                 break
@@ -128,10 +127,10 @@ class SimulationService:
         action, _ = self._agent.predict(self._obs, deterministic=True)
         return action
 
-    def _check_destruction_occurred(self) -> bool:
+    def _check_destruction_occurred(self, already_destroyed: set[str]) -> bool:
         if self.env is None:
             return False
-        return any(a.is_destroyed for a in self.env.assets)
+        return any(a.is_destroyed and a.name not in already_destroyed for a in self.env.assets)
 
     def _state_snapshot(self, info: dict) -> dict:
         if self.env is None:

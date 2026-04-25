@@ -19,8 +19,9 @@ import numpy as np
 import gymnasium as gym
 
 from eye.config import (
-    AttackEvent, MissionAssetConfig, ScenarioConfig, SUPPLY_TYPES, SupplyType,
+    AttackEvent, MissionAssetConfig, ScenarioConfig, SUPPLY_PRIORITIES, SUPPLY_TYPES, SupplyType,
 )
+from eye.utils.geometry import haversine_nm
 from eye.domain.asset import Asset
 from eye.domain.base import Base
 from eye.domain.threat import ThreatZone
@@ -107,7 +108,8 @@ class LogisticsEnv(gym.Env):
                 if asset.is_ready and asset.destination_installation_id and \
                         asset.destination_installation_id != asset.current_installation_id:
                     dest_cfg = self._install_map.get(asset.destination_installation_id)
-                    if dest_cfg and self._base_for_id(asset.current_installation_id).can_operate(asset.type.runway_required_ft):
+                    current_base = self._base_for_id(asset.current_installation_id)
+                    if dest_cfg and current_base and current_base.can_operate(asset.type.runway_required_ft):
                         asset.takeoff(self.np_random)
 
         # 3. Move in-transit assets and land arrivals
@@ -119,7 +121,6 @@ class LogisticsEnv(gym.Env):
                 continue
             asset.travel_step(dest_cfg.latitude, dest_cfg.longitude, self.mc.step_to_hour)
             # Reward efficient routing (shorter paths are better)
-            from eye.utils.geometry import haversine_nm
             distance_nm = haversine_nm(asset.latitude, asset.longitude, dest_cfg.latitude, dest_cfg.longitude)
             reward += self._reward_shaper.efficient_routing(distance_nm)
             if asset.at_destination(dest_cfg.latitude, dest_cfg.longitude):
@@ -161,12 +162,12 @@ class LogisticsEnv(gym.Env):
         # 8. Missile alerts for next step
         self._update_missile_alerts()
 
-        # 8. Snapshot for history / UI
+        # 9. Snapshot for history / UI
         self._step_count += 1
         snapshot = self._snapshot()
         self._history.append(snapshot)
 
-        # 9. Termination check
+        # 10. Termination check
         terminated = self.current_time >= self.mc.mission_length_hr
         if terminated:
             reward += self._reward_shaper.mission_complete()
@@ -236,7 +237,6 @@ class LogisticsEnv(gym.Env):
             asset.load_fuel(taken)
 
         # Load supplies by priority
-        from eye.config import SUPPLY_PRIORITIES
         for priority_name, pct in act["priority_pcts"].items():
             if pct > 0:
                 # Load supplies in this priority group proportionally
@@ -248,9 +248,7 @@ class LogisticsEnv(gym.Env):
                         if st.value in (asset.type.cargo_types or [s.value for s in SUPPLY_TYPES]):
                             available = current_base.supplies.get(st.value, 0.0)
                             if available > 0:
-                                # Calculate proportional share of this priority's allocation
-                                priority_share = available / total_available
-                                requested = available * pct / 100.0 * priority_share
+                                requested = available * pct / 100.0
                                 taken = current_base.pickup(st.value, requested)
                                 asset.load_supply(st.value, taken)
 
