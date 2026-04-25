@@ -2,8 +2,8 @@
 import numpy as np
 import pytest
 
-from aces.services.scenario import ScenarioService
-from aces.spaces.action import ActionBuilder
+from eye.services.scenario import ScenarioService
+from eye.spaces.action import ActionBuilder
 
 
 @pytest.fixture

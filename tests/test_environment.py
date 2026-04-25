@@ -2,9 +2,9 @@
 import numpy as np
 import pytest
 
-from aces.config import MissionConfig, RewardConfig, ScenarioConfig
-from aces.domain.environment import LogisticsEnv
-from aces.services.scenario import ScenarioService
+from eye.config import MissionConfig, RewardConfig, ScenarioConfig
+from eye.domain.environment import LogisticsEnv
+from eye.services.scenario import ScenarioService
 
 
 @pytest.fixture

@@ -1,8 +1,8 @@
-# ACES Platform
+# EYE Platform
 
-**ACE Simulation Environment — Military Logistics RL Simulator**
+**Enhanced Yield Environment — Military Logistics RL Simulator**
 
-ACES is a comprehensive reinforcement learning environment for military logistics simulation, built on Gymnasium. It models airlift operations, supply chain management, and adversarial threats in a realistic geospatial scenario.
+EYE is a comprehensive reinforcement learning environment for military logistics simulation, built on Gymnasium. It models airlift operations, supply chain management, and adversarial threats in a realistic geospatial scenario.
 
 ## Features
 
@@ -32,7 +32,7 @@ cd aces-v4
 pip install -e .
 ```
 
-This installs ACES and all dependencies (Gymnasium, Stable Baselines3, SQLAlchemy, Streamlit, etc.).
+This installs EYE and all dependencies (Gymnasium, Stable Baselines3, SQLAlchemy, Streamlit, etc.).
 
 ### Verify Installation
 ```bash
@@ -53,12 +53,12 @@ The Streamlit-based UI provides an intuitive interface for scenario editing, tra
 
 **Start the UI:**
 ```bash
-aces-ui
+eye-ui
 ```
 
 Or manually:
 ```bash
-streamlit run aces/ui/app.py
+streamlit run eye/ui/app.py
 ```
 
 Then open your browser to `http://localhost:8501`
@@ -69,6 +69,9 @@ Then open your browser to `http://localhost:8501`
 - **Live Dashboard** (Page 3): Real-time mission visualization and metrics
 - **Debug Console** (Page 4): Manual step-through control with state inspection
 - **Analysis** (Page 5): Training results and performance metrics
+- **Decision Support Dashboard** (Page 6): Real-time decision support with recommendations and risk alerts
+- **Strategy Analysis** (Page 7): Compare and benchmark different reinforcement learning algorithms
+- **Resource Planning** (Page 8): Optimize supply chains, deploy assets, and allocate resources
 
 ### 2. Command-Line Interface (CLI)
 
@@ -76,22 +79,22 @@ For headless operation or scripting:
 
 **Run a simulation with default settings:**
 ```bash
-python -m aces.ui.cli run
+python -m eye.ui.cli run
 ```
 
 **Run with custom scenario:**
 ```bash
-python -m aces.ui.cli run --scenario "Western Pacific Logistics"
+python -m eye.ui.cli run --scenario "Western Pacific Logistics"
 ```
 
 **Train an RL agent:**
 ```bash
-python -m aces.ui.cli train --algorithm maskable_ppo --timesteps 500000
+python -m eye.ui.cli train --algorithm maskable_ppo --timesteps 500000
 ```
 
 **See all options:**
 ```bash
-python -m aces.ui.cli --help
+python -m eye.ui.cli --help
 ```
 
 ### 3. Programmatic Usage (Python Scripts)
@@ -100,8 +103,8 @@ For custom research and integration:
 
 **Simple environment test:**
 ```python
-from aces.services.scenario import ScenarioService
-from aces.domain.environment import LogisticsEnv
+from eye.services.scenario import ScenarioService
+from eye.domain.environment import LogisticsEnv
 
 # Load scenario
 svc = ScenarioService()
@@ -124,8 +127,8 @@ print(f"Episode reward: {reward}")
 
 **Train with Stable Baselines3:**
 ```python
-from aces.services.scenario import ScenarioService
-from aces.domain.environment import LogisticsEnv
+from eye.services.scenario import ScenarioService
+from eye.domain.environment import LogisticsEnv
 from stable_baselines3 import MaskablePPO
 from stable_baselines3.common.vec_env import VecNormalize
 
@@ -156,9 +159,9 @@ for _ in range(100):
 
 **Run heuristic baseline:**
 ```python
-from aces.services.scenario import ScenarioService
-from aces.domain.environment import LogisticsEnv
-from aces.agents.heuristic import GreedyAgent
+from eye.services.scenario import ScenarioService
+from eye.domain.environment import LogisticsEnv
+from eye.agents.heuristic import GreedyAgent
 
 svc = ScenarioService()
 config = svc.get_scenario_config(svc.list_scenarios()[0]['id'])
@@ -183,8 +186,8 @@ print(f"Total reward: {total_reward}")
 For advanced training with multiple algorithms:
 
 ```python
-from aces.services.training import TrainingService
-from aces.config import TrainingConfig
+from eye.services.training import TrainingService
+from eye.config import TrainingConfig
 
 tsvc = TrainingService()
 svc = ScenarioService()
@@ -221,7 +224,7 @@ model = tsvc.load_best_model()
 
 ### Environment Parameters
 
-Modify `aces/config.py` to customize:
+Modify `eye/config.py` to customize:
 
 **Mission Configuration:**
 ```python
@@ -268,7 +271,7 @@ Through the UI:
 
 Or programmatically:
 ```python
-from aces.services.scenario import ScenarioService
+from eye.services.scenario import ScenarioService
 
 svc = ScenarioService()
 scenario = svc.create_scenario(
@@ -282,23 +285,27 @@ scenario = svc.create_scenario(
 
 ### Run the UI
 ```bash
-aces-ui
+eye-ui
 ```
 Or:
 ```bash
-streamlit run aces/ui/app.py
+streamlit run eye/ui/app.py
 ```
 
 The UI provides:
 - **Scenario Editor**: Create/edit scenarios with bases, assets, threats.
 - **Mission Planner**: Train RL agents or run heuristic simulations.
+- **Live Dashboard**: Real-time mission visualization and metrics.
 - **Debug Console**: Step-through manual control.
-- **Live Dashboard**: Real-time visualization (future).
+- **Analysis**: Training results and performance metrics.
+- **Decision Support Dashboard**: Real-time decision support with recommendations.
+- **Strategy Analysis**: Compare and benchmark different algorithms.
+- **Resource Planning**: Optimize supply chains and resource allocation.
 
 ### Use Programmatically
 ```python
-from aces.services.scenario import ScenarioService
-from aces.domain.environment import LogisticsEnv
+from eye.services.scenario import ScenarioService
+from eye.domain.environment import LogisticsEnv
 
 # Load default scenario
 svc = ScenarioService()

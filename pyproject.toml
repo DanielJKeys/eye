@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "aces-platform"
+name = "eye-platform"
 version = "1.0.0"
-description = "ACE Simulation Environment Platform — Military Logistics RL Simulator"
+description = "EYE Platform — Enhanced Yield Environment for military logistics RL simulator"
 requires-python = ">=3.10"
 dependencies = [
     "gymnasium>=0.26.3",
@@ -28,11 +28,11 @@ dev = [
 ]
 
 [project.scripts]
-aces-ui = "aces.ui.cli:main"
+eye-ui = "eye.ui.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["aces*"]
+include = ["eye*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

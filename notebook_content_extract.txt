@@ -7,7 +7,7 @@ JUPYTER NOTEBOOK STRUCTURE AND CONTENTS
 CELL 0: MARKDOWN
 ####################################################################################################
 
-# ACES Simulator
+# EYE Simulator
 
 ####################################################################################################
 CELL 1: MARKDOWN
@@ -1549,7 +1549,7 @@ class LogisticsEnv(gym.Env):
 
 
     # Add content to the document
-    doc.add_heading(f'ACES Report - Mission Length {self.time}', level=1)
+    doc.add_heading(f'EYE Report - Mission Length {self.time}', level=1)
 
     base_check_status = []
     asset_check_status = []
@@ -1709,7 +1709,7 @@ class LogisticsEnv(gym.Env):
 
     # Save the document to the specified file path
     drive.mount('/content/drive')
-    doc.save(folder_path + f'ACES Report - {datetime.now().strftime("%d-%m-%y")}.docx')
+    doc.save(folder_path + f'EYE Report - {datetime.now().strftime("%d-%m-%y")}.docx')
     df_destruction_status.to_csv(folder_path + f'Destruction Report - {datetime.now().strftime("%d-%m-%y")}.csv')
     df_asset_status.to_csv(folder_path + f'Asset Statuses Report - {datetime.now().strftime("%d-%m-%y")}.csv')
     df_base_status.to_csv(folder_path + f'Bases Report - {datetime.now().strftime("%d-%m-%y")}.csv')
@@ -2439,7 +2439,9 @@ CELL 55: CODE
 [OUTPUT]
 Collecting stable-baselines3
   Downloading stable_baselines3-2.2.1-py3-none-any.whl (181 kB)
-[?25l     [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/181.7 kB[0m [31m?[0m eta [36m-:--:--[0m[2K     [91m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[91m╸[0m[90m━━━━━━━━[0m [32m143.4/181.7 kB[0m [31m4.3 MB/s[0m eta [36m0:00:01[0m[2K     [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m181.7/181.7 kB[0m [31m3.9 MB/s[0m eta [36m0:00:00[0m
+[?25l     [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/181.7 kB[0m [31m?[0m eta [36m-:--:--[0m
+[2K     [91m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[91m╸[0m[90m━━━━━━━━[0m [32m143.4/181.7 kB[0m [31m4.3 MB/s[0m eta [36m0:00:01[0m
+[2K     [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m181.7/181.7 kB[0m [31m3.9 MB/s[0m eta [36m0:00:00[0m
 [?25hRequirement already sati
 ####################################################################################################
 CELL 56: CODE

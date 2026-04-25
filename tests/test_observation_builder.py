@@ -2,8 +2,8 @@
 import numpy as np
 import pytest
 
-from aces.services.scenario import ScenarioService
-from aces.spaces.observation import ObservationBuilder
+from eye.services.scenario import ScenarioService
+from eye.spaces.observation import ObservationBuilder
 
 
 @pytest.fixture
@@ -23,8 +23,8 @@ def obs_builder(scenario_config):
 @pytest.fixture
 def mock_bases(scenario_config):
     """Create mock bases for testing."""
-    from aces.domain.base import Base
-    from aces.config import MissionConfig
+    from eye.domain.base import Base
+    from eye.config import MissionConfig
     mc = MissionConfig()
     return [Base(inst, mc) for inst in scenario_config.installations]
 
@@ -32,8 +32,8 @@ def mock_bases(scenario_config):
 @pytest.fixture
 def mock_assets(scenario_config):
     """Create mock assets for testing."""
-    from aces.domain.asset import Asset
-    from aces.config import MissionConfig
+    from eye.domain.asset import Asset
+    from eye.config import MissionConfig
     mc = MissionConfig()
     assets = []
     for ma in scenario_config.mission_assets:

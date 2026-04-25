@@ -32,4 +32,4 @@ jobs:
     
     - name: Check imports
       run: |
-        python -c "import aces; print('Import successful')"
+        python -c "import eye; print('Import successful')"

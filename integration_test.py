@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Integration Test for ACES Platform Enhancements
+# Integration Test for EYE Platform Enhancements
 
 Tests the integration of all new modules including analytics, optimization,
 threat modeling, multi-agent scenarios, and performance enhancements.
@@ -18,18 +18,18 @@ import time
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from aces.analytics.decision_analyzer import DecisionAnalyzer
-from aces.analytics.audit_logger import AuditLogger
-from aces.analytics.strategy_comparator import StrategyComparator
-from aces.optimization.resource_optimizer import ResourceOptimizer
-from aces.threat_modeling.threat_model import ThreatModel, DynamicThreatZone, AdversaryProfile
-from aces.multiagent.multiagent_scenario import MultiAgentScenario, AgentTeam, AgentTeam
-from aces.performance.performance_optimizer import PerformanceOptimizer, ParallelTask
-from aces.services.scenario import ScenarioService
-from aces.domain.environment import LogisticsEnv
-from aces.domain.asset import Asset
-from aces.spaces.action import ActionBuilder
-from aces.utils.geometry import Point2D
+from eye.analytics.decision_analyzer import DecisionAnalyzer
+from eye.analytics.audit_logger import AuditLogger
+from eye.analytics.strategy_comparator import StrategyComparator
+from eye.optimization.resource_optimizer import ResourceOptimizer
+from eye.threat_modeling.threat_model import ThreatModel, DynamicThreatZone, AdversaryProfile
+from eye.multiagent.multiagent_scenario import MultiAgentScenario, AgentTeam, AgentTeam
+from eye.performance.performance_optimizer import PerformanceOptimizer, ParallelTask
+from eye.services.scenario import ScenarioService
+from eye.domain.environment import LogisticsEnv
+from eye.domain.asset import Asset
+from eye.spaces.action import ActionBuilder
+from eye.utils.geometry import Point2D
 
 
 def test_decision_analyzer():
@@ -338,7 +338,7 @@ def test_module_integration():
 def run_all_tests():
     """Run all integration tests."""
     print("=" * 60)
-    print("ACES Platform Integration Tests")
+    print("EYE Platform Integration Tests")
     print("=" * 60)
 
     start_time = time.time()

@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-"""Validation script to test ACES environment functionality."""
+"""Validation script to test EYE environment functionality."""
 
 import sys
 import numpy as np
 
 def main():
-    print("Validating ACES Platform...")
+    print("Validating EYE Platform...")
     
     try:
         # Test imports
         print("Testing imports...")
-        from aces.services.scenario import ScenarioService
-        from aces.domain.environment import LogisticsEnv
-        from aces.config import ScenarioConfig
+        from eye.services.scenario import ScenarioService
+        from eye.domain.environment import LogisticsEnv
+        from eye.config import ScenarioConfig
         print("✓ Imports successful")
         
         # Test scenario service
@@ -70,7 +70,7 @@ def main():
         env.render()
         print("✓ Render successful")
         
-        print("\n🎉 All validations passed! ACES is operational.")
+        print("\n🎉 All validations passed! EYE is operational.")
         return 0
         
     except Exception as e:
