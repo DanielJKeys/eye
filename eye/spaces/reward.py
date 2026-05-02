@@ -27,8 +27,8 @@ class RewardShaper:
         return threat_level * self.cfg.threat_exposure_per_step
 
     def efficient_routing(self, distance_nm: float) -> float:
-        """Reward for selecting optimal flight paths."""
-        return distance_nm * self.cfg.efficient_routing_per_nm
+        """Penalty for suboptimal (long) flight paths — shorter routes score higher."""
+        return -distance_nm * self.cfg.efficient_routing_per_nm
 
     def timely_delivery(self) -> float:
         """Bonus for deliveries completed on schedule."""

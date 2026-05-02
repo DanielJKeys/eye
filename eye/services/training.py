@@ -1,6 +1,6 @@
 """TrainingService — manages RL training runs.
 
-Wraps the environment in SubprocVecEnv + VecNormalize for parallel training.
+Wraps the environment in DummyVecEnv + VecNormalize for parallel training.
 Saves both model weights and normalization statistics so inference is correct.
 """
 from __future__ import annotations
@@ -102,7 +102,7 @@ class TrainingService:
         on_complete: Optional[Callable],
     ) -> None:
         try:
-            from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize, DummyVecEnv
+            from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv
             from stable_baselines3.common.callbacks import BaseCallback
 
             def make_env(seed_offset: int):
@@ -112,11 +112,8 @@ class TrainingService:
                     return env
                 return _init
 
-            # Use SubprocVecEnv for n_envs > 1, DummyVecEnv otherwise
-            if cfg.n_envs > 1:
-                vec_env = SubprocVecEnv([make_env(i) for i in range(cfg.n_envs)])
-            else:
-                vec_env = DummyVecEnv([make_env(0)])
+            # DummyVecEnv works cross-platform (SubprocVecEnv fails on Windows in daemon threads)
+            vec_env = DummyVecEnv([make_env(i) for i in range(cfg.n_envs)])
 
             vec_env = VecNormalize(
                 vec_env,
@@ -136,7 +133,8 @@ class TrainingService:
 
                 def _on_step(self) -> bool:
                     if self.n_calls % self.report_freq == 0:
-                        mean_r = float(np.mean(self.locals.get("rewards", [0.0]) or [0.0]))
+                        rewards = self.locals.get("rewards")
+                        mean_r = float(np.mean(rewards)) if rewards is not None else 0.0
                         self.prog.update(self.num_timesteps, mean_r)
                     return True
 
@@ -169,16 +167,20 @@ class TrainingService:
             self._last_model_path = model_path + ".zip"
             self._last_vecnorm_path = vecnorm_path
 
-            # Evaluate
-            eval_env = LogisticsEnv(scenario)
-            obs, _ = eval_env.reset(seed=42)
+            # Evaluate using a normalized env so observations match training distribution
+            eval_vec = DummyVecEnv([lambda: LogisticsEnv(scenario)])
+            eval_vec = VecNormalize.load(vecnorm_path, eval_vec)
+            eval_vec.training = False
+            eval_vec.norm_reward = False
+            obs = eval_vec.reset()
             total_r = 0.0
-            done = False
-            while not done:
-                action, _ = model.predict(obs, deterministic=True)
-                obs, r, terminated, truncated, _ = eval_env.step(action)
-                total_r += r
-                done = terminated or truncated
+            done = [False]
+            use_masks = requires_masking(cfg.algorithm)
+            while not done[0]:
+                masks = eval_vec.env_method("action_masks")[0] if use_masks else None
+                action, _ = model.predict(obs, action_masks=masks, deterministic=True)
+                obs, rewards, done, _ = eval_vec.step(action)
+                total_r += float(rewards[0])
 
             progress.finish(total_r)
             if on_complete:

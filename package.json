@@ -1,0 +1,20 @@
+{
+  "name": "eye-platform",
+  "version": "1.0.0",
+  "description": "EYE Platform - Logistics RL simulation and decision support UI",
+  "scripts": {
+    "setup": "pip install -e . && cd ui && npm install",
+    "api": "uvicorn eye.api.main:app --reload --port 8000",
+    "ui": "cd ui && npm run dev",
+    "start:streamlit": "python -m streamlit run eye/ui/app.py",
+    "test": "python -m pytest",
+    "validate": "python validate.py",
+    "docker:build": "docker build -t eye-platform .",
+    "docker:run": "docker run --rm -p 8501:8501 eye-platform",
+    "docker:up": "npm run docker:build && npm run docker:run"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "private": true
+}
