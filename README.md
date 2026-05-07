@@ -25,13 +25,6 @@ EYE is a comprehensive reinforcement learning environment for military logistics
 - pip
 - Git
 
-### Install from Source
-```bash
-git clone https://github.com/DanielJKeys/aces-v4.git
-cd aces-v4
-pip install -e .
-```
-
 This installs EYE and all dependencies (Gymnasium, Stable Baselines3, SQLAlchemy, Streamlit, etc.).
 
 ### Verify Installation
