@@ -427,4 +427,3 @@ See LICENSE file.
 ## Acknowledgments
 
 Built for military logistics research and decision support.</content>
-<parameter name="filePath">c:\Users\Danie\Code Projects\aces-v4\README.md
